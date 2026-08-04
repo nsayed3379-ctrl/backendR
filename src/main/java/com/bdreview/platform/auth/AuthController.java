@@ -15,6 +15,23 @@ public class AuthController {
         this.authService = authService;
     }
 
+    @PostMapping("/register")
+    public ResponseEntity<TokenPairDto> register(@Valid @RequestBody RegisterRequestDto request) {
+        return ResponseEntity.ok(
+                authService.register(request.phoneNumber(), request.code(), request.password(), request.role()));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<TokenPairDto> login(@Valid @RequestBody LoginRequestDto request) {
+        return ResponseEntity.ok(authService.login(request.phoneNumber(), request.password()));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<TokenPairDto> resetPassword(@Valid @RequestBody ResetPasswordRequestDto request) {
+        return ResponseEntity.ok(
+                authService.resetPassword(request.phoneNumber(), request.code(), request.newPassword()));
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<TokenPairDto> refresh(@Valid @RequestBody RefreshRequest request) {
         return ResponseEntity.ok(authService.refresh(request.refreshToken()));

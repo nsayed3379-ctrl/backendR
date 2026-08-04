@@ -9,6 +9,7 @@ import com.bdreview.platform.common.PageRequestDefaults;
 import com.bdreview.platform.common.ResourceNotFoundException;
 import com.bdreview.platform.fakereview.FakeReviewAnalysisService;
 import com.bdreview.platform.summary.SummaryGenerationService;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
@@ -36,6 +37,7 @@ public class ReviewService {
     private final UserRepository userRepository;
     private final FakeReviewAnalysisService fakeReviewAnalysisService;
     private final SummaryGenerationService summaryGenerationService;
+    private final ReviewService self;
 
     public ReviewService(ReviewRepository reviewRepository,
                           ReviewPhotoRepository reviewPhotoRepository,
@@ -43,7 +45,8 @@ public class ReviewService {
                           BusinessRepository businessRepository,
                           UserRepository userRepository,
                           FakeReviewAnalysisService fakeReviewAnalysisService,
-                          SummaryGenerationService summaryGenerationService) {
+                          SummaryGenerationService summaryGenerationService,
+                          @Lazy ReviewService self) {
         this.reviewRepository = reviewRepository;
         this.reviewPhotoRepository = reviewPhotoRepository;
         this.reviewVoteRepository = reviewVoteRepository;
@@ -51,6 +54,7 @@ public class ReviewService {
         this.userRepository = userRepository;
         this.fakeReviewAnalysisService = fakeReviewAnalysisService;
         this.summaryGenerationService = summaryGenerationService;
+        this.self = self;
     }
 
     @Transactional
@@ -80,7 +84,7 @@ public class ReviewService {
         // Fast path: counts immediately, never waits on the ML analysis below.
         businessRepository.applyRatingAggregateDelta(request.businessId(), request.rating(), 1);
 
-        runPostSubmitAnalysis(review.getId(), request.businessId());
+        self.runPostSubmitAnalysis(review.getId(), request.businessId());
 
         return review;
     }
@@ -104,7 +108,7 @@ public class ReviewService {
             businessRepository.applyRatingAggregateDelta(review.getBusinessId(), request.rating() - oldRating, 0);
         }
 
-        runPostSubmitAnalysis(reviewId, review.getBusinessId()); // content changed -> re-run signals
+        self.runPostSubmitAnalysis(reviewId, review.getBusinessId()); // content changed -> re-run signals
         return saved;
     }
 

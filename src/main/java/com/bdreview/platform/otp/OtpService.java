@@ -1,8 +1,5 @@
 package com.bdreview.platform.otp;
 
-import com.bdreview.platform.auth.AuthService;
-import com.bdreview.platform.auth.TokenPairDto;
-import com.bdreview.platform.auth.UserRole;
 import com.bdreview.platform.common.BadRequestException;
 import com.bdreview.platform.common.PhoneNumberUtils;
 import com.bdreview.platform.common.RateLimitExceededException;
@@ -29,7 +26,6 @@ public class OtpService {
 
     private final OtpVerificationRepository otpRepository;
     private final SmsGatewayService smsGatewayService;
-    private final AuthService authService;
 
     private final long ttlMinutes;
     private final int maxAttempts;
@@ -39,7 +35,6 @@ public class OtpService {
 
     public OtpService(OtpVerificationRepository otpRepository,
                        SmsGatewayService smsGatewayService,
-                       AuthService authService,
                        @Value("${app.otp.ttl-minutes}") long ttlMinutes,
                        @Value("${app.otp.max-attempts}") int maxAttempts,
                        @Value("${app.otp.resend-cooldown-seconds}") long resendCooldownSeconds,
@@ -47,7 +42,6 @@ public class OtpService {
                        @Value("${app.otp.max-requests-per-hour}") long maxPerHour) {
         this.otpRepository = otpRepository;
         this.smsGatewayService = smsGatewayService;
-        this.authService = authService;
         this.ttlMinutes = ttlMinutes;
         this.maxAttempts = maxAttempts;
         this.resendCooldownSeconds = resendCooldownSeconds;
@@ -81,8 +75,13 @@ public class OtpService {
         smsGatewayService.sendOtp(phone, code);
     }
 
+    /**
+     * Validates and consumes the most recent pending OTP for a phone number.
+     * Callers (registration, password reset) are responsible for whatever
+     * user/token action the verified phone number authorizes.
+     */
     @Transactional
-    public TokenPairDto verifyOtp(String rawPhoneNumber, String code, UserRole roleIfNewAccount) {
+    public void verifyCode(String rawPhoneNumber, String code) {
         String phone = PhoneNumberUtils.normalize(rawPhoneNumber);
 
         OtpVerification otp = otpRepository
@@ -101,7 +100,6 @@ public class OtpService {
         }
 
         otpRepository.markConsumed(otp.getId());
-        return authService.registerOrLogin(phone, roleIfNewAccount);
     }
 
     private static String generateCode() {

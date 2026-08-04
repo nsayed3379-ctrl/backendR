@@ -28,6 +28,19 @@ public class User {
     @Column(name = "otp_verified", nullable = false)
     private boolean otpVerified = false;
 
+    @Column(name = "password_hash")
+    private String passwordHash;
+
+    @Column(length = 120)
+    private String name;
+
+    @Column(name = "profile_photo_url", columnDefinition = "text")
+    private String profilePhotoUrl;
+
+    @Builder.Default
+    @Column(name = "preferred_language", nullable = false, length = 10)
+    private String preferredLanguage = "en";
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
