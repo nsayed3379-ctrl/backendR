@@ -42,6 +42,9 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                 "/api/v1/businesses/**", "/api/v1/categories/**", "/api/v1/cities/**",
                                 "/api/v1/areas/**", "/api/v1/attributes/**").permitAll()
+                        // pre-signed upload URLs (§13) are bare fetch() PUTs with no Authorization
+                        // header — the URL itself (unguessable object key) is the auth boundary
+                        .requestMatchers("/api/v1/storage/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
