@@ -1,0 +1,84 @@
+package com.bdreview.platform.admin.service;
+
+import com.bdreview.platform.admin.form.UserForm;
+import com.bdreview.platform.auth.User;
+import com.bdreview.platform.auth.UserRepository;
+import com.bdreview.platform.auth.UserRole;
+import com.bdreview.platform.common.BadRequestException;
+import com.bdreview.platform.common.PhoneNumberUtils;
+import com.bdreview.platform.common.ResourceNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+/** Admin-panel user management: same {@code app_user} table as the public API, read/managed here instead. */
+@Service
+public class AdminUserService {
+
+    private static final int PASSWORD_MIN_LENGTH = 8;
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    public AdminUserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    public Page<User> search(String query, UserRole role, int page) {
+        return userRepository.search(query == null || query.isBlank() ? null : query, role, PageRequest.of(page, 20));
+    }
+
+    public User get(UUID id) {
+        return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    /** Creates a new staff/admin account directly — the public API deliberately never allows this (spec §5). */
+    @Transactional
+    public User createAdmin(UserForm form) {
+        String phone = PhoneNumberUtils.normalize(form.getPhoneNumber());
+        if (userRepository.existsByPhoneNumber(phone)) {
+            throw new BadRequestException("This phone number is already registered.");
+        }
+        validatePassword(form.getPassword());
+
+        return userRepository.save(User.builder()
+                .phoneNumber(phone)
+                .role(UserRole.ADMIN)
+                .otpVerified(true)
+                .passwordHash(passwordEncoder.encode(form.getPassword()))
+                .name(form.getName())
+                .preferredLanguage(form.getPreferredLanguage() == null || form.getPreferredLanguage().isBlank()
+                        ? "en" : form.getPreferredLanguage())
+                .build());
+    }
+
+    @Transactional
+    public User updateProfile(UUID id, UserForm form) {
+        User user = get(id);
+        user.setName(form.getName());
+        user.setPreferredLanguage(form.getPreferredLanguage());
+        if (form.getRole() != null) {
+            user.setRole(form.getRole());
+        }
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public void resetPassword(UUID id, String newPassword) {
+        validatePassword(newPassword);
+        User user = get(id);
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < PASSWORD_MIN_LENGTH) {
+            throw new BadRequestException("Password must be at least " + PASSWORD_MIN_LENGTH + " characters.");
+        }
+    }
+}

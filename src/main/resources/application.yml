@@ -73,3 +73,12 @@ app:
   ml-service:
     # Python FastAPI/LangGraph microservice — see /ml-service in the project root
     base-url: ${ML_SERVICE_BASE_URL:http://localhost:8081}
+  admin:
+    # Thymeleaf admin panel (session/form-login, mounted at /admin — spec §12).
+    # On startup, if no ADMIN-role user exists yet, one is auto-provisioned with
+    # these credentials so the panel is reachable out of the box. Change these
+    # (or just log in and rotate the password) before deploying anywhere real.
+    bootstrap-enabled: ${ADMIN_BOOTSTRAP_ENABLED:true}
+    default-phone: ${ADMIN_DEFAULT_PHONE:+8801700000000}
+    default-password: ${ADMIN_DEFAULT_PASSWORD:ChangeMe123!}
+    default-name: ${ADMIN_DEFAULT_NAME:Platform Admin}

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Audit Log - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('audit')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>Audit log</h1>
+            <p>Full trail of every admin resolution — reports, NID queue, claims, and review overrides (spec §12).</p>
+        </div>
+    </div>
+
+    <div th:replace="~{admin/fragments/parts :: alerts}"></div>
+
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+            <tr>
+                <th>When</th>
+                <th>Entity type</th>
+                <th>Entity id</th>
+                <th>Action</th>
+                <th>Performed by</th>
+                <th>Notes</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="log : ${results.content}">
+                <td class="text-mono" th:text="${log.createdAt}">-</td>
+                <td th:text="${log.entityType}">-</td>
+                <td class="text-mono small" th:text="${log.entityId}">-</td>
+                <td><span class="badge bg-secondary" th:text="${log.action}">-</span></td>
+                <td class="text-mono small" th:text="${log.performedByAdmin}">-</td>
+                <td th:text="${log.notes} ?: '—'">-</td>
+            </tr>
+            <tr th:if="${results.content.isEmpty()}">
+                <td colspan="6" class="admin-table-empty">No audit entries yet.</td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="admin-pagination" th:if="${results.totalPages > 0}">
+            <span>Page <span th:text="${results.number + 1}">1</span> of <span th:text="${results.totalPages}">1</span> &middot; <span th:text="${results.totalElements}">0</span> total</span>
+            <div class="btn-group btn-group-sm">
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasPrevious()} ? 'disabled'" th:href="@{/admin/audit-log(page=${results.number - 1})}">Previous</a>
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasNext()} ? 'disabled'" th:href="@{/admin/audit-log(page=${results.number + 1})}">Next</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

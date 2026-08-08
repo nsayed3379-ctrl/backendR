@@ -102,3 +102,42 @@ the rest of the app still uses Spring MVC.
   are by raw `UUID` foreign key (e.g. `Review.businessId`), not JPA `@ManyToOne`
   entity references — this keeps each section's package independently buildable/testable,
   matching the "alada alada package" (separate package per section) request.
+
+## Admin panel (Thymeleaf, `com.bdreview.platform.admin`)
+
+A server-rendered admin/moderation panel is mounted at **`/admin`**, separate
+from the JSON API above. It's a self-contained addition — nothing in the
+packages described above was changed to build it; it only reuses existing
+repositories/services (and adds a small number of read-side query methods to
+`UserRepository`, `BusinessRepository`, `ReviewRepository` for admin listing).
+
+- **Auth**: session/form login (`AdminSecurityConfig`), completely separate
+  `SecurityFilterChain` from the stateless JWT chain in `auth.SecurityConfig`
+  (which is untouched). Backed by the same `app_user` table, restricted to
+  `UserRole.ADMIN`.
+- **First run**: since ADMIN accounts can't self-register (§5), a default
+  admin is auto-created on startup by `AdminBootstrapRunner` — see
+  `app.admin.*` in `application.yml` (override via `ADMIN_DEFAULT_PHONE` /
+  `ADMIN_DEFAULT_PASSWORD` env vars). Log in at `/admin/login` and change the
+  password from the user's detail page.
+- **Coverage**: dashboard (key counts + moderation queues), users (search,
+  create staff accounts, edit/role change, password reset), business
+  listings (search/create/edit/verify/soft-delete/restore), reference data
+  (categories, cities, areas, attributes), review moderation (visibility
+  override + delete, with fake-review signal breakdown), reports queue,
+  business-claim queue, NID-verification queue, and the full audit log.
+- Moderation actions (`ReportService.resolve`, `BusinessClaimService.resolve`,
+  `NidVerificationService.resolve`, `ModerationService.resolveFlaggedReview`)
+  are called directly from the admin controllers — unmodified — since
+  `common.CurrentUser` reads the admin's id/role straight out of the Spring
+  Security session the same way it reads it out of a JWT.
+
+### Migration note: `V4__allow_admin_role.sql`
+
+`V1__init.sql`'s `app_user.role` check constraint only allowed `'CONSUMER'` and
+`'BUSINESS_OWNER'` — `UserRole.ADMIN` was never added to it, even though the
+Java enum and every moderation/claim/NID service already depend on that role
+existing. `V4__allow_admin_role.sql` widens the constraint to include
+`'ADMIN'` (V1 is already-applied and Flyway-checksummed, so it's fixed
+forward with a new migration rather than edited in place). Run once and the
+admin bootstrap account (and any other ADMIN row) can be inserted normally.

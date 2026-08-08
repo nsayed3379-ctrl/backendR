@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Edit User - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('users')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>Edit user</h1>
+            <p class="text-mono" th:text="${userForm.phoneNumber}">-</p>
+        </div>
+        <a th:href="@{/admin/users/{id}(id=${userForm.id})}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+    <div class="admin-form-section" style="max-width:520px;">
+        <form th:action="@{/admin/users/{id}/edit(id=${userForm.id})}" method="post" th:object="${userForm}">
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Name</label>
+                <input type="text" th:field="*{name}" class="form-control"/>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Preferred language</label>
+                <select th:field="*{preferredLanguage}" class="form-select">
+                    <option value="en">English</option>
+                    <option value="bn">বাংলা (Bengali)</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Role</label>
+                <select th:field="*{role}" class="form-select">
+                    <option value="CONSUMER">CONSUMER</option>
+                    <option value="BUSINESS_OWNER">BUSINESS_OWNER</option>
+                    <option value="ADMIN">ADMIN</option>
+                </select>
+                <div class="form-text">Changing role takes effect immediately for the next token this user issues.</div>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save changes</button>
+        </form>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

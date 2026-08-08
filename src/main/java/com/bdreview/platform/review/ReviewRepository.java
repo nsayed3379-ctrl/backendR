@@ -84,4 +84,16 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
     /** Count of reviews since the last cached summary was generated (drives §15 trigger at "every 10 new"). */
     long countByBusinessIdAndDeletedAtIsNullAndCreatedAtAfter(UUID businessId, Instant since);
+
+    // -----------------------------------------------------------------
+    // Admin panel (com.bdreview.platform.admin) — full moderation listing
+    // across every business and visibility status (the consumer/owner-facing
+    // finders above stay scoped to a single business or a single status).
+    // -----------------------------------------------------------------
+    @Query("""
+            SELECT r FROM Review r
+            WHERE r.deletedAt IS NULL
+              AND (:status IS NULL OR r.visibilityStatus = :status)
+            """)
+    Page<Review> adminSearch(@Param("status") VisibilityStatus status, Pageable pageable);
 }

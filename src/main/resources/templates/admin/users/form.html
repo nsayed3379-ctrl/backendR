@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>New Admin Account - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('users')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>New admin account</h1>
+            <p>Staff/moderator accounts can't self-register — create them here (spec §5).</p>
+        </div>
+        <a th:href="@{/admin/users}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to users</a>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+    <div class="admin-form-section" style="max-width:520px;">
+        <form th:action="@{/admin/users/new}" method="post" th:object="${userForm}">
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Phone number</label>
+                <input type="text" th:field="*{phoneNumber}" class="form-control" placeholder="+8801700000000" required/>
+                <div class="text-danger small" th:if="${#fields.hasErrors('phoneNumber')}" th:errors="*{phoneNumber}"></div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Name</label>
+                <input type="text" th:field="*{name}" class="form-control" required/>
+                <div class="text-danger small" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Preferred language</label>
+                <select th:field="*{preferredLanguage}" class="form-select">
+                    <option value="en">English</option>
+                    <option value="bn">বাংলা (Bengali)</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Password</label>
+                <input type="password" th:field="*{password}" class="form-control" minlength="8" required/>
+                <div class="form-text">At least 8 characters.</div>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> Create account</button>
+        </form>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

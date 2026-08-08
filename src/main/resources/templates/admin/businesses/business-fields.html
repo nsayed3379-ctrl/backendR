@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="fields">
+    <div class="row g-3">
+        <div class="col-md-8">
+            <label class="form-label small fw-semibold">Business name</label>
+            <input type="text" th:field="*{name}" class="form-control" required/>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small fw-semibold">Price tier</label>
+            <select th:field="*{priceTier}" class="form-select" required>
+                <option th:each="t : ${priceTiers}" th:value="${t}" th:text="${t}"></option>
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label small fw-semibold">Category</label>
+            <select th:field="*{categoryId}" class="form-select" required>
+                <option value="" disabled>Select category</option>
+                <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}"></option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small fw-semibold">City</label>
+            <select th:field="*{cityId}" class="form-select" required>
+                <option value="" disabled>Select city</option>
+                <option th:each="c : ${cities}" th:value="${c.id}" th:text="${c.name}"></option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small fw-semibold">Area</label>
+            <select th:field="*{areaId}" class="form-select" required>
+                <option value="" disabled>Select area</option>
+                <option th:each="a : ${areas}" th:value="${a.id}" th:text="${a.city.name + ' — ' + a.name}"></option>
+            </select>
+            <div class="form-text">Areas belong to a city — pick the matching one for the city selected above.</div>
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Contact number</label>
+            <input type="text" th:field="*{contactNumber}" class="form-control" placeholder="+8801700000000" required/>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Cover photo URL</label>
+            <input type="text" th:field="*{coverPhotoUrl}" class="form-control" placeholder="https://…"/>
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Latitude</label>
+            <input type="number" step="any" min="-90" max="90" th:field="*{latitude}" class="form-control" required/>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Longitude</label>
+            <input type="number" step="any" min="-180" max="180" th:field="*{longitude}" class="form-control" required/>
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label small fw-semibold">Operating hours</label>
+            <input type="text" th:field="*{operatingHours}" class="form-control" placeholder="Sat–Thu 10am–8pm"/>
+        </div>
+        <div class="col-md-6 d-flex align-items-end">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" th:field="*{verified}" id="verifiedCheck"/>
+                <label class="form-check-label small fw-semibold" for="verifiedCheck">Verified listing</label>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <label class="form-label small fw-semibold">Description</label>
+            <textarea th:field="*{description}" class="form-control" rows="3"></textarea>
+        </div>
+
+        <div class="col-12">
+            <label class="form-label small fw-semibold">Attributes</label>
+            <div class="admin-attr-grid">
+                <div class="form-check" th:each="attr : ${attributes}">
+                    <input class="form-check-input" type="checkbox" th:field="*{attributeIds}" th:value="${attr.id}"/>
+                    <label class="form-check-label small" th:for="${#ids.prev('attributeIds')}" th:text="${attr.name}">Attribute</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>

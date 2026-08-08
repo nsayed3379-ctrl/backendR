@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Dashboard - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('dashboard')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>Dashboard</h1>
+            <p>Platform overview and pending moderation work.</p>
+        </div>
+    </div>
+
+    <div th:replace="~{admin/fragments/parts :: alerts}"></div>
+
+    <div class="admin-stat-grid">
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon"><i class="bi bi-people"></i></div>
+            <div>
+                <div class="admin-stat-value" th:text="${userCount}">0</div>
+                <div class="admin-stat-label">Total users</div>
+            </div>
+        </div>
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon info"><i class="bi bi-shop"></i></div>
+            <div>
+                <div class="admin-stat-value" th:text="${businessCount}">0</div>
+                <div class="admin-stat-label">Total listings</div>
+            </div>
+        </div>
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon ok"><i class="bi bi-star"></i></div>
+            <div>
+                <div class="admin-stat-value" th:text="${reviewCount}">0</div>
+                <div class="admin-stat-label">Total reviews</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-page-header" style="margin-top: 8px;">
+        <div>
+            <h1 style="font-size:1.05rem;">Moderation queues</h1>
+        </div>
+    </div>
+
+    <div class="admin-stat-grid">
+        <a th:href="@{/admin/reports}" class="admin-stat-card text-decoration-none text-reset">
+            <div class="admin-stat-icon warn"><i class="bi bi-flag"></i></div>
+            <div>
+                <div class="admin-stat-value" th:text="${queueCounts.pendingReports()}">0</div>
+                <div class="admin-stat-label">Pending reports</div>
+            </div>
+        </a>
+        <a th:href="@{/admin/nid-verifications}" class="admin-stat-card text-decoration-none text-reset">
+            <div class="admin-stat-icon warn"><i class="bi bi-person-vcard"></i></div>
+            <div>
+                <div class="admin-stat-value" th:text="${queueCounts.pendingNidVerifications()}">0</div>
+                <div class="admin-stat-label">Pending NID verifications</div>
+            </div>
+        </a>
+        <a th:href="@{/admin/reviews(status='NOT_RECOMMENDED')}" class="admin-stat-card text-decoration-none text-reset">
+            <div class="admin-stat-icon danger"><i class="bi bi-exclamation-diamond"></i></div>
+            <div>
+                <div class="admin-stat-value" th:text="${queueCounts.flaggedReviews()}">0</div>
+                <div class="admin-stat-label">Flagged reviews</div>
+            </div>
+        </a>
+    </div>
+
+    <div class="admin-card">
+        <h2 class="h6 fw-bold mb-3">Recent admin activity</h2>
+        <div class="admin-table-wrap" style="border:none;">
+            <table class="admin-table">
+                <thead>
+                <tr>
+                    <th>When</th>
+                    <th>Entity</th>
+                    <th>Action</th>
+                    <th>Notes</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="log : ${recentAuditLogs}">
+                    <td class="text-mono" th:text="${log.createdAt}">-</td>
+                    <td><span class="text-mono" th:text="${log.entityType}">-</span></td>
+                    <td><span class="badge" th:text="${log.action}">-</span></td>
+                    <td th:text="${log.notes} ?: '—'">-</td>
+                </tr>
+                <tr th:if="${recentAuditLogs.isEmpty()}">
+                    <td colspan="4" class="admin-table-empty">No admin activity yet.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

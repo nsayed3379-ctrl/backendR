@@ -142,4 +142,34 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
     void markVerified(@Param("id") UUID id);
 
     List<Business> findByOwnerUserIdAndDeletedAtIsNull(UUID ownerUserId);
+
+    // -----------------------------------------------------------------
+    // Admin panel (com.bdreview.platform.admin) — listing/search across
+    // ALL businesses (including soft-deleted, so admins can restore them),
+    // plus the verified-toggle and undelete actions the public API never
+    // needed. The consumer-facing search()/filter methods above are
+    // untouched.
+    // -----------------------------------------------------------------
+    @Query("""
+            SELECT b FROM Business b
+            WHERE (:query IS NULL OR :query = '' OR LOWER(b.name) LIKE LOWER(CONCAT('%', :query, '%')))
+              AND (:categoryId IS NULL OR b.category.id = :categoryId)
+              AND (:cityId IS NULL OR b.city.id = :cityId)
+              AND (:includeDeleted = true OR b.deletedAt IS NULL)
+            """)
+    Page<Business> adminSearch(@Param("query") String query,
+                                @Param("categoryId") UUID categoryId,
+                                @Param("cityId") UUID cityId,
+                                @Param("includeDeleted") boolean includeDeleted,
+                                Pageable pageable);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Business b SET b.deletedAt = NULL WHERE b.id = :id")
+    void restore(@Param("id") UUID id);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Business b SET b.verified = :verified WHERE b.id = :id")
+    void setVerified(@Param("id") UUID id, @Param("verified") boolean verified);
 }

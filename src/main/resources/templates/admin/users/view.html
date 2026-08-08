@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>User - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('users')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1 th:text="${user.name} ?: user.phoneNumber">User</h1>
+            <p class="text-mono" th:text="${user.id}">-</p>
+        </div>
+        <a th:href="@{/admin/users/{id}/edit(id=${user.id})}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+    </div>
+
+    <div th:replace="~{admin/fragments/parts :: alerts}"></div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="admin-form-section">
+                <h2>Profile</h2>
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-4 text-muted">Phone</dt><dd class="col-sm-8 text-mono" th:text="${user.phoneNumber}">-</dd>
+                    <dt class="col-sm-4 text-muted">Name</dt><dd class="col-sm-8" th:text="${user.name} ?: '—'">-</dd>
+                    <dt class="col-sm-4 text-muted">Role</dt><dd class="col-sm-8"><span class="badge" th:classappend="'badge-role-' + ${user.role}" th:text="${user.role}">-</span></dd>
+                    <dt class="col-sm-4 text-muted">OTP verified</dt><dd class="col-sm-8" th:text="${user.otpVerified} ? 'Yes' : 'No'">-</dd>
+                    <dt class="col-sm-4 text-muted">Language</dt><dd class="col-sm-8" th:text="${user.preferredLanguage}">-</dd>
+                    <dt class="col-sm-4 text-muted">Joined</dt><dd class="col-sm-8 text-mono" th:text="${user.createdAt}">-</dd>
+                </dl>
+            </div>
+
+            <div class="admin-form-section">
+                <h2>Reset password</h2>
+                <form th:action="@{/admin/users/{id}/reset-password(id=${user.id})}" method="post" class="d-flex gap-2">
+                    <input type="password" name="newPassword" class="form-control form-control-sm" placeholder="New password (min 8 chars)" required minlength="8"/>
+                    <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap">
+                        <i class="bi bi-key"></i> Reset
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="admin-form-section">
+                <h2>Owned business listings</h2>
+                <div th:if="${ownedBusinesses.isEmpty()}" class="text-muted small">No listings owned by this account.</div>
+                <ul class="list-unstyled small mb-0">
+                    <li th:each="b : ${ownedBusinesses}" class="mb-2">
+                        <a th:href="@{/admin/businesses/{id}(id=${b.id})}" th:text="${b.name}">Business</a>
+                        <span class="text-muted"> — <span th:text="${b.city.name}">City</span></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

@@ -67,6 +67,13 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Server-rendered Thymeleaf admin panel (session/form-login, separate from the
+             stateless JWT API above — see com.bdreview.platform.admin) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
         <!-- WebClient, for calling the Python ML microservice (fake-review §14, summary §15) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
