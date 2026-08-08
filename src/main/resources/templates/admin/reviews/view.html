@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Review - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('reviews')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1 th:text="${review.rating + ' / 5'}">Review</h1>
+            <p>
+                <span class="badge" th:classappend="'badge-status-' + ${review.visibilityStatus}" th:text="${review.visibilityStatus}">-</span>
+                &middot; suspicion score <strong th:text="${review.suspicionScore}">0</strong>/100
+            </p>
+        </div>
+        <a th:href="@{/admin/reviews}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+
+    <div th:replace="~{admin/fragments/parts :: alerts}"></div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="admin-form-section">
+                <h2>Review content</h2>
+                <p th:text="${review.content} ?: '(no text provided)'">Review text</p>
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-4 text-muted">Business</dt>
+                    <dd class="col-sm-8">
+                        <a th:if="${business != null}" th:href="@{/admin/businesses/{id}(id=${business.id})}" th:text="${business.name}">Business</a>
+                        <span th:unless="${business != null}" class="text-mono" th:text="${review.businessId}">-</span>
+                    </dd>
+                    <dt class="col-sm-4 text-muted">Author</dt>
+                    <dd class="col-sm-8">
+                        <a th:if="${author != null}" th:href="@{/admin/users/{id}(id=${author.id})}" th:text="${author.phoneNumber}">Author</a>
+                        <span th:unless="${author != null}" class="text-mono" th:text="${review.userId}">-</span>
+                    </dd>
+                    <dt class="col-sm-4 text-muted">Useful / Funny / Cool</dt>
+                    <dd class="col-sm-8" th:text="${review.usefulCount + ' / ' + review.funnyCount + ' / ' + review.coolCount}">-</dd>
+                    <dt class="col-sm-4 text-muted">Created</dt>
+                    <dd class="col-sm-8 text-mono" th:text="${review.createdAt}">-</dd>
+                </dl>
+            </div>
+
+            <div class="admin-form-section">
+                <h2>Fake-review signals</h2>
+                <div th:if="${signals.isEmpty()}" class="text-muted small">No signals recorded (analysis may still be pending, or the review scored clean).</div>
+                <table class="table table-sm small mb-0" th:unless="${signals.isEmpty()}">
+                    <thead><tr><th>Signal</th><th>Score</th><th>Detail</th></tr></thead>
+                    <tbody>
+                    <tr th:each="s : ${signals}">
+                        <td th:text="${s.signalType}">-</td>
+                        <td th:text="${s.score}">0</td>
+                        <td th:text="${s.detail} ?: '—'">-</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="admin-form-section">
+                <h2>Moderation actions</h2>
+                <form th:action="@{/admin/reviews/{id}/visibility(id=${review.id})}" method="post" class="mb-3">
+                    <label class="form-label small fw-semibold">Set visibility</label>
+                    <select name="status" class="form-select form-select-sm mb-2">
+                        <option value="RECOMMENDED" th:selected="${review.visibilityStatus.name() == 'RECOMMENDED'}">RECOMMENDED</option>
+                        <option value="NOT_RECOMMENDED" th:selected="${review.visibilityStatus.name() == 'NOT_RECOMMENDED'}">NOT_RECOMMENDED</option>
+                        <option value="HIDDEN" th:selected="${review.visibilityStatus.name() == 'HIDDEN'}">HIDDEN</option>
+                    </select>
+                    <input type="text" name="notes" class="form-control form-control-sm mb-2" placeholder="Notes (optional, saved to audit log)"/>
+                    <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-check2-square"></i> Apply</button>
+                </form>
+                <form th:action="@{/admin/reviews/{id}/delete(id=${review.id})}" method="post"
+                      onsubmit="return confirm('Remove this review? This also adjusts the business rating.');">
+                    <input type="text" name="notes" class="form-control form-control-sm mb-2" placeholder="Notes (optional)"/>
+                    <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash"></i> Remove review</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

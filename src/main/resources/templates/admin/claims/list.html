@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Business Claims - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('claims')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>Business claims</h1>
+            <p>Owners claiming an admin-seeded or already-listed business (spec §2).</p>
+        </div>
+    </div>
+
+    <div th:replace="~{admin/fragments/parts :: alerts}"></div>
+
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+            <tr>
+                <th>Business</th>
+                <th>Claimant</th>
+                <th>Method</th>
+                <th>Filed</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="c : ${results.content}">
+                <td>
+                    <a th:href="@{/admin/businesses/{id}(id=${c.businessId})}" th:text="${businessNames[c.id] ?: c.businessId}">-</a>
+                </td>
+                <td class="text-mono" th:text="${claimantPhones[c.id] ?: c.claimantUserId}">-</td>
+                <td><span class="badge bg-secondary" th:text="${c.verificationMethod}">-</span></td>
+                <td class="text-mono" th:text="${c.createdAt}">-</td>
+                <td class="text-end">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <form th:action="@{/admin/claims/{id}/approve(id=${c.id})}" method="post" class="d-flex gap-1">
+                            <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes" style="max-width:140px;"/>
+                            <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-check2"></i></button>
+                        </form>
+                        <form th:action="@{/admin/claims/{id}/reject(id=${c.id})}" method="post"
+                              onsubmit="return confirm('Reject this claim?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${results.content.isEmpty()}">
+                <td colspan="5" class="admin-table-empty">No pending claims.</td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="admin-pagination" th:if="${results.totalPages > 0}">
+            <span>Page <span th:text="${results.number + 1}">1</span> of <span th:text="${results.totalPages}">1</span> &middot; <span th:text="${results.totalElements}">0</span> total</span>
+            <div class="btn-group btn-group-sm">
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasPrevious()} ? 'disabled'" th:href="@{/admin/claims(page=${results.number - 1})}">Previous</a>
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasNext()} ? 'disabled'" th:href="@{/admin/claims(page=${results.number + 1})}">Next</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

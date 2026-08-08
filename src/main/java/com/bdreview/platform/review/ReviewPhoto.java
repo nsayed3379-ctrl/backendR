@@ -1,0 +1,32 @@
+package com.bdreview.platform.review;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = "review_photo")
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor @Builder
+public class ReviewPhoto {
+
+    @Id
+    @GeneratedValue
+    private UUID id;
+
+    @Column(name = "review_id", nullable = false)
+    private UUID reviewId;
+
+    @Column(nullable = false, columnDefinition = "text")
+    private String url;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @PrePersist
+    void onCreate() {
+        this.createdAt = Instant.now();
+    }
+}

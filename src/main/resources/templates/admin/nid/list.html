@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>NID Verifications - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('nid')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>NID verifications</h1>
+            <p>Owner identity verification for business claims (spec §8). Only the encrypted storage reference is ever shown here — never a raw image URL.</p>
+        </div>
+    </div>
+
+    <div th:replace="~{admin/fragments/parts :: alerts}"></div>
+
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+            <tr>
+                <th>Business</th>
+                <th>Owner</th>
+                <th>Encrypted image ref</th>
+                <th>Filed</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="n : ${results.content}">
+                <td>
+                    <a th:href="@{/admin/businesses/{id}(id=${n.businessId})}" th:text="${businessNames[n.id] ?: n.businessId}">-</a>
+                </td>
+                <td class="text-mono" th:text="${ownerPhones[n.id] ?: n.ownerUserId}">-</td>
+                <td class="text-mono small" style="max-width:220px; overflow:hidden; text-overflow:ellipsis;" th:text="${n.encryptedImageRef}">-</td>
+                <td class="text-mono" th:text="${n.createdAt}">-</td>
+                <td class="text-end">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <form th:action="@{/admin/nid-verifications/{id}/approve(id=${n.id})}" method="post" class="d-flex gap-1">
+                            <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes" style="max-width:140px;"/>
+                            <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-check2"></i></button>
+                        </form>
+                        <form th:action="@{/admin/nid-verifications/{id}/reject(id=${n.id})}" method="post"
+                              onsubmit="return confirm('Reject this NID verification?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${results.content.isEmpty()}">
+                <td colspan="5" class="admin-table-empty">No pending NID verifications.</td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="admin-pagination" th:if="${results.totalPages > 0}">
+            <span>Page <span th:text="${results.number + 1}">1</span> of <span th:text="${results.totalPages}">1</span> &middot; <span th:text="${results.totalElements}">0</span> total</span>
+            <div class="btn-group btn-group-sm">
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasPrevious()} ? 'disabled'" th:href="@{/admin/nid-verifications(page=${results.number - 1})}">Previous</a>
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasNext()} ? 'disabled'" th:href="@{/admin/nid-verifications(page=${results.number + 1})}">Next</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

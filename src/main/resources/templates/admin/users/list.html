@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Users - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('users')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>Users</h1>
+            <p>Consumers, business owners, and admin/staff accounts.</p>
+        </div>
+        <a th:href="@{/admin/users/new}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg"></i> New admin account
+        </a>
+    </div>
+
+    <div th:replace="~{admin/fragments/parts :: alerts}"></div>
+
+    <form th:action="@{/admin/users}" method="get" class="admin-toolbar">
+        <input type="text" name="query" th:value="${query}" class="form-control form-control-sm" style="max-width:260px;" placeholder="Search name or phone"/>
+        <select name="role" class="form-select form-select-sm" style="max-width:180px;">
+            <option value="">All roles</option>
+            <option th:each="r : ${roles}" th:value="${r}" th:text="${r}" th:selected="${r == role}"></option>
+        </select>
+        <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Filter</button>
+    </form>
+
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+            <tr>
+                <th>Phone</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>OTP Verified</th>
+                <th>Language</th>
+                <th>Created</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="u : ${results.content}">
+                <td class="text-mono" th:text="${u.phoneNumber}">-</td>
+                <td th:text="${u.name} ?: '—'">-</td>
+                <td><span class="badge" th:classappend="'badge-role-' + ${u.role}" th:text="${u.role}">-</span></td>
+                <td>
+                    <i class="bi bi-check-circle-fill text-success" th:if="${u.otpVerified}"></i>
+                    <i class="bi bi-x-circle text-muted" th:unless="${u.otpVerified}"></i>
+                </td>
+                <td th:text="${u.preferredLanguage}">-</td>
+                <td class="text-mono" th:text="${u.createdAt}">-</td>
+                <td class="text-end">
+                    <a th:href="@{/admin/users/{id}(id=${u.id})}" class="btn btn-sm btn-outline-secondary">View</a>
+                </td>
+            </tr>
+            <tr th:if="${results.content.isEmpty()}">
+                <td colspan="7" class="admin-table-empty">No users found.</td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="admin-pagination" th:if="${results.totalPages > 0}">
+            <span>Page <span th:text="${results.number + 1}">1</span> of <span th:text="${results.totalPages}">1</span> &middot; <span th:text="${results.totalElements}">0</span> total</span>
+            <div class="btn-group btn-group-sm">
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasPrevious()} ? 'disabled'"
+                   th:href="@{/admin/users(query=${query},role=${role},page=${results.number - 1})}">Previous</a>
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasNext()} ? 'disabled'"
+                   th:href="@{/admin/users(query=${query},role=${role},page=${results.number + 1})}">Next</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

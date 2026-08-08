@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Edit Business - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('businesses')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>Edit listing</h1>
+        </div>
+        <a th:href="@{/admin/businesses/{id}(id=${businessForm.id})}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+    <div class="admin-form-section">
+        <form th:action="@{/admin/businesses/{id}/edit(id=${businessForm.id})}" method="post" th:object="${businessForm}">
+            <div th:replace="~{admin/businesses/business-fields :: fields}"></div>
+            <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-save"></i> Save changes</button>
+        </form>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

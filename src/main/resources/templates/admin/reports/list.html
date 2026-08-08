@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Reports - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('reports')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>Reports</h1>
+            <p>Pending user reports against reviews and listings (spec §11).</p>
+        </div>
+    </div>
+
+    <div th:replace="~{admin/fragments/parts :: alerts}"></div>
+
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+            <tr>
+                <th>Target type</th>
+                <th>Target</th>
+                <th>Reason</th>
+                <th>Filed</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${results.content}">
+                <td><span class="badge bg-secondary" th:text="${r.targetType}">-</span></td>
+                <td style="max-width:360px;">
+                    <span th:text="${targetPreviews[r.id] ?: '(not found — may have been removed)'}">-</span>
+                    <div class="text-muted text-mono small" th:text="${r.targetId}">-</div>
+                </td>
+                <td><span class="badge bg-warning text-dark" th:text="${r.reason}">-</span></td>
+                <td class="text-mono" th:text="${r.createdAt}">-</td>
+                <td class="text-end">
+                    <form th:action="@{/admin/reports/{id}/resolve(id=${r.id})}" method="post" class="d-flex gap-2 justify-content-end">
+                        <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (optional)" style="max-width:180px;"/>
+                        <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-check2"></i> Resolve</button>
+                    </form>
+                </td>
+            </tr>
+            <tr th:if="${results.content.isEmpty()}">
+                <td colspan="5" class="admin-table-empty">No pending reports. 🎉</td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="admin-pagination" th:if="${results.totalPages > 0}">
+            <span>Page <span th:text="${results.number + 1}">1</span> of <span th:text="${results.totalPages}">1</span> &middot; <span th:text="${results.totalElements}">0</span> total</span>
+            <div class="btn-group btn-group-sm">
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasPrevious()} ? 'disabled'" th:href="@{/admin/reports(page=${results.number - 1})}">Previous</a>
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasNext()} ? 'disabled'" th:href="@{/admin/reports(page=${results.number + 1})}">Next</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

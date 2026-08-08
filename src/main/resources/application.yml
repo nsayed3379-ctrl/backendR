@@ -1,0 +1,84 @@
+spring:
+  application:
+    name: business-review-platform
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:bd_review}
+    username: postgres
+    password: 12345
+    hikari:
+      maximum-pool-size: 20
+
+  jpa:
+    hibernate:
+      # Flyway owns schema. Set to validate so entity mappings are checked against
+      # migrations instead of silently drifting.
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        format_sql: false
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: ${PORT:8085}
+
+# --- Domain-specific config (Part A of spec) ---
+app:
+  cors:
+    # Comma-separated list of origins allowed to call this API from a browser.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+  jwt:
+    access-token-ttl-minutes: 20
+    refresh-token-ttl-days: 14
+    secret: ${JWT_SECRET:change-me-in-prod}
+  otp:
+    ttl-minutes: 5
+    max-attempts: 5
+    resend-cooldown-seconds: 60
+    max-requests-per-5-min: 3
+    max-requests-per-hour: 5
+  review:
+    edit-delete-window-hours: 72
+  fake-review:
+    low-confidence-max: 30
+    medium-confidence-max: 70
+  photo:
+    max-size-mb: 5
+    allowed-types: image/jpeg,image/png,image/webp
+  storage:
+    # Local-disk object storage stand-in for the dev/test profile (spec §13).
+    # Swap ObjectStorageClient for a real S3/R2 implementation in prod.
+    local-dir: ${STORAGE_LOCAL_DIR:./uploads}
+    base-url: ${STORAGE_BASE_URL:http://localhost:${server.port}}
+  pagination:
+    default-page-size: 20
+    max-page-size: 30
+  report:
+    max-per-hour: 10
+  ml-service:
+    # Python FastAPI/LangGraph microservice — see /ml-service in the project root
+    base-url: ${ML_SERVICE_BASE_URL:http://localhost:8081}
+  admin:
+    # Thymeleaf admin panel (session/form-login, mounted at /admin — spec §12).
+    # On startup, if no ADMIN-role user exists yet, one is auto-provisioned with
+    # these credentials so the panel is reachable out of the box. Change these
+    # (or just log in and rotate the password) before deploying anywhere real.
+    bootstrap-enabled: ${ADMIN_BOOTSTRAP_ENABLED:true}
+    default-phone: ${ADMIN_DEFAULT_PHONE:+8801700000000}
+    default-password: ${ADMIN_DEFAULT_PASSWORD:ChangeMe123!}
+    default-name: ${ADMIN_DEFAULT_NAME:Platform Admin}

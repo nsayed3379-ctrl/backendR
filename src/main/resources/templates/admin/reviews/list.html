@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Reviews - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('reviews')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>Reviews</h1>
+            <p>All reviews across every listing, filterable by moderation status.</p>
+        </div>
+    </div>
+
+    <div th:replace="~{admin/fragments/parts :: alerts}"></div>
+
+    <form th:action="@{/admin/reviews}" method="get" class="admin-toolbar">
+        <select name="status" class="form-select form-select-sm" style="max-width:220px;">
+            <option value="">All statuses</option>
+            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}" th:selected="${s == status}"></option>
+        </select>
+        <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Filter</button>
+    </form>
+
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+            <tr>
+                <th>Rating</th>
+                <th>Content</th>
+                <th>Status</th>
+                <th>Suspicion</th>
+                <th>Created</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${results.content}">
+                <td th:text="${r.rating + '/5'}">-</td>
+                <td style="max-width:340px;" th:text="${r.content} ?: '(no text)'">-</td>
+                <td><span class="badge" th:classappend="'badge-status-' + ${r.visibilityStatus}" th:text="${r.visibilityStatus}">-</span></td>
+                <td th:text="${r.suspicionScore}">0</td>
+                <td class="text-mono" th:text="${r.createdAt}">-</td>
+                <td class="text-end">
+                    <a th:href="@{/admin/reviews/{id}(id=${r.id})}" class="btn btn-sm btn-outline-secondary">View</a>
+                </td>
+            </tr>
+            <tr th:if="${results.content.isEmpty()}">
+                <td colspan="6" class="admin-table-empty">No reviews found.</td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="admin-pagination" th:if="${results.totalPages > 0}">
+            <span>Page <span th:text="${results.number + 1}">1</span> of <span th:text="${results.totalPages}">1</span> &middot; <span th:text="${results.totalElements}">0</span> total</span>
+            <div class="btn-group btn-group-sm">
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasPrevious()} ? 'disabled'"
+                   th:href="@{/admin/reviews(status=${status},page=${results.number - 1})}">Previous</a>
+                <a class="btn btn-outline-secondary" th:classappend="${!results.hasNext()} ? 'disabled'"
+                   th:href="@{/admin/reviews(status=${status},page=${results.number + 1})}">Next</a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>

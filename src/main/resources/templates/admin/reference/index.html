@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Categories &amp; Areas - BD Review Admin</title>
+    <th:block th:replace="~{admin/fragments/parts :: head-assets}"></th:block>
+</head>
+<body class="admin-body">
+<div th:replace="~{admin/fragments/parts :: topbar}"></div>
+<div th:replace="~{admin/fragments/parts :: sidebar('reference-data')}"></div>
+
+<main class="admin-main">
+    <div class="admin-page-header">
+        <div>
+            <h1>Categories &amp; areas</h1>
+            <p>Fixed taxonomy tables — categories, cities, areas, and filterable business attributes.</p>
+        </div>
+    </div>
+
+    <div th:replace="~{admin/fragments/parts :: alerts}"></div>
+
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${tab == 'categories'} ? 'active'" th:href="@{/admin/reference-data(tab='categories')}">Categories</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${tab == 'cities'} ? 'active'" th:href="@{/admin/reference-data(tab='cities')}">Cities</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${tab == 'areas'} ? 'active'" th:href="@{/admin/reference-data(tab='areas')}">Areas</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${tab == 'attributes'} ? 'active'" th:href="@{/admin/reference-data(tab='attributes')}">Attributes</a>
+        </li>
+    </ul>
+
+    <!-- Categories -->
+    <div th:if="${tab == 'categories'}" class="row g-3">
+        <div class="col-md-4">
+            <div class="admin-form-section">
+                <h2>Add category</h2>
+                <form th:action="@{/admin/reference-data/categories/new}" method="post">
+                    <input type="text" name="name" class="form-control form-control-sm mb-2" placeholder="e.g. Electrician" required/>
+                    <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-plus-lg"></i> Add</button>
+                </form>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Name</th><th></th></tr></thead>
+                    <tbody>
+                    <tr th:each="c : ${categories}">
+                        <td th:text="${c.name}">-</td>
+                        <td class="text-end">
+                            <form th:action="@{/admin/reference-data/categories/{id}/delete(id=${c.id})}" method="post"
+                                  onsubmit="return confirm('Delete this category?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${categories.isEmpty()}"><td colspan="2" class="admin-table-empty">No categories yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cities -->
+    <div th:if="${tab == 'cities'}" class="row g-3">
+        <div class="col-md-4">
+            <div class="admin-form-section">
+                <h2>Add city</h2>
+                <form th:action="@{/admin/reference-data/cities/new}" method="post">
+                    <input type="text" name="name" class="form-control form-control-sm mb-2" placeholder="e.g. Dhaka" required/>
+                    <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-plus-lg"></i> Add</button>
+                </form>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Name</th><th></th></tr></thead>
+                    <tbody>
+                    <tr th:each="c : ${cities}">
+                        <td th:text="${c.name}">-</td>
+                        <td class="text-end">
+                            <form th:action="@{/admin/reference-data/cities/{id}/delete(id=${c.id})}" method="post"
+                                  onsubmit="return confirm('Delete this city?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${cities.isEmpty()}"><td colspan="2" class="admin-table-empty">No cities yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Areas -->
+    <div th:if="${tab == 'areas'}" class="row g-3">
+        <div class="col-md-4">
+            <div class="admin-form-section">
+                <h2>Add area</h2>
+                <form th:action="@{/admin/reference-data/areas/new}" method="post">
+                    <select name="cityId" class="form-select form-select-sm mb-2" required>
+                        <option value="" disabled selected>Select city</option>
+                        <option th:each="c : ${cities}" th:value="${c.id}" th:text="${c.name}"></option>
+                    </select>
+                    <input type="text" name="name" class="form-control form-control-sm mb-2" placeholder="e.g. Gulshan" required/>
+                    <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-plus-lg"></i> Add</button>
+                </form>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>City</th><th>Area</th><th></th></tr></thead>
+                    <tbody>
+                    <tr th:each="a : ${areas}">
+                        <td th:text="${a.city.name}">-</td>
+                        <td th:text="${a.name}">-</td>
+                        <td class="text-end">
+                            <form th:action="@{/admin/reference-data/areas/{id}/delete(id=${a.id})}" method="post"
+                                  onsubmit="return confirm('Delete this area?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${areas.isEmpty()}"><td colspan="3" class="admin-table-empty">No areas yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attributes -->
+    <div th:if="${tab == 'attributes'}" class="row g-3">
+        <div class="col-md-4">
+            <div class="admin-form-section">
+                <h2>Add attribute</h2>
+                <form th:action="@{/admin/reference-data/attributes/new}" method="post">
+                    <input type="text" name="name" class="form-control form-control-sm mb-2" placeholder="e.g. wifi, parking"/>
+                    <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-plus-lg"></i> Add</button>
+                </form>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Name</th><th></th></tr></thead>
+                    <tbody>
+                    <tr th:each="a : ${attributes}">
+                        <td th:text="${a.name}">-</td>
+                        <td class="text-end">
+                            <form th:action="@{/admin/reference-data/attributes/{id}/delete(id=${a.id})}" method="post"
+                                  onsubmit="return confirm('Delete this attribute?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${attributes.isEmpty()}"><td colspan="2" class="admin-table-empty">No attributes yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<th:block th:replace="~{admin/fragments/parts :: scripts}"></th:block>
+</body>
+</html>
