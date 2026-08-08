@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -51,8 +52,8 @@ public class BusinessService {
         Area area = areaRepository.findById(request.areaId())
                 .orElseThrow(() -> new ResourceNotFoundException("Area not found"));
 
-        Set<BusinessAttribute> attributes = request.attributeIds() == null ? Set.of()
-                : Set.copyOf(attributeRepository.findByIdIn(request.attributeIds()));
+        Set<BusinessAttribute> attributes = request.attributeIds() == null ? new HashSet<>()
+                : new HashSet<>(attributeRepository.findByIdIn(request.attributeIds()));
 
         Business business = Business.builder()
                 .ownerUserId(ownerUserId)
@@ -83,8 +84,8 @@ public class BusinessService {
                 .orElseThrow(() -> new ResourceNotFoundException("City not found"));
         Area area = areaRepository.findById(request.areaId())
                 .orElseThrow(() -> new ResourceNotFoundException("Area not found"));
-        Set<BusinessAttribute> attributes = request.attributeIds() == null ? Set.of()
-                : Set.copyOf(attributeRepository.findByIdIn(request.attributeIds()));
+        Set<BusinessAttribute> attributes = request.attributeIds() == null ? new HashSet<>()
+                : new HashSet<>(attributeRepository.findByIdIn(request.attributeIds()));
 
         business.setName(request.name());
         business.setCategory(category);
