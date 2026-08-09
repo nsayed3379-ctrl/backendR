@@ -57,7 +57,7 @@ public class AdminBusinessService {
     }
 
     public Business get(UUID id) {
-        return businessRepository.findById(id)
+        return businessRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
     }
 

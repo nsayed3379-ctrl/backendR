@@ -37,7 +37,7 @@ public class AdminReferenceDataController {
         model.addAttribute("tab", tab);
         model.addAttribute("categories", categoryRepository.findAll(Sort.by("name")));
         model.addAttribute("cities", cityRepository.findAll(Sort.by("name")));
-        model.addAttribute("areas", areaRepository.findAll());
+        model.addAttribute("areas", areaRepository.findAllWithCity());
         model.addAttribute("attributes", attributeRepository.findAll(Sort.by("name")));
         model.addAttribute("referenceItemForm", new ReferenceItemForm());
         model.addAttribute("active", "reference-data");

@@ -149,7 +149,7 @@ public class AdminBusinessController {
     private void addReferenceData(Model model) {
         model.addAttribute("categories", categoryRepository.findAll(Sort.by("name")));
         model.addAttribute("cities", cityRepository.findAll(Sort.by("name")));
-        model.addAttribute("areas", areaRepository.findAll());
+        model.addAttribute("areas", areaRepository.findAllWithCity());
         model.addAttribute("attributes", attributeRepository.findAll(Sort.by("name")));
         model.addAttribute("priceTiers", PriceTier.values());
     }
