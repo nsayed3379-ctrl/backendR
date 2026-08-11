@@ -124,6 +124,12 @@ public class AdminBusinessService {
         businessRepository.setVerified(id, verified);
     }
 
+    /** Clears a report-workflow flag once an admin has reviewed the situation (report package). */
+    @Transactional
+    public void unflag(UUID id) {
+        businessRepository.unflag(id);
+    }
+
     private Category requireCategory(UUID id) {
         return categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));

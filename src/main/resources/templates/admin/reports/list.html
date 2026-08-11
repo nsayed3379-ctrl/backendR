@@ -12,7 +12,7 @@
     <div class="admin-page-header">
         <div>
             <h1>Reports</h1>
-            <p>Pending user reports against reviews and listings (spec §11).</p>
+            <p>Pending user reports against reviews and listings. Auto-triaged by priority; each has a 48h SLA.</p>
         </div>
     </div>
 
@@ -22,31 +22,63 @@
         <table class="admin-table">
             <thead>
             <tr>
-                <th>Target type</th>
+                <th>Ref</th>
+                <th>Priority</th>
                 <th>Target</th>
                 <th>Reason</th>
-                <th>Filed</th>
+                <th>Reporter</th>
+                <th>Filed / Due</th>
                 <th></th>
             </tr>
             </thead>
             <tbody>
-            <tr th:each="r : ${results.content}">
-                <td><span class="badge bg-secondary" th:text="${r.targetType}">-</span></td>
-                <td style="max-width:360px;">
-                    <span th:text="${targetPreviews[r.id] ?: '(not found — may have been removed)'}">-</span>
+            <tr th:each="r : ${results.content}" th:classappend="${r.overdue} ? 'admin-row-overdue'">
+                <td class="text-mono" th:text="${r.referenceCode}">R-1000</td>
+                <td>
+                    <span th:if="${r.priority.name() == 'HIGH'}" class="badge bg-danger">
+                        <i class="bi bi-exclamation-octagon"></i> HIGH
+                    </span>
+                    <span th:unless="${r.priority.name() == 'HIGH'}" class="badge bg-secondary">NORMAL</span>
+                </td>
+                <td style="max-width:320px;">
+                    <span class="badge bg-secondary" th:text="${r.targetType}">-</span>
+                    <span class="badge bg-light text-dark border" th:text="${targetReportCounts[r.id]} + ' report(s) total'">1 report(s) total</span>
+                    <div th:text="${targetPreviews[r.id] ?: '(not found — may have been removed)'}">-</div>
                     <div class="text-muted text-mono small" th:text="${r.targetId}">-</div>
                 </td>
                 <td><span class="badge bg-warning text-dark" th:text="${r.reason}">-</span></td>
-                <td class="text-mono" th:text="${r.createdAt}">-</td>
+                <td>
+                    <div class="text-mono small" th:text="${r.reporterUserId}">-</div>
+                    <div class="text-muted small"
+                         th:with="c=${reporterStats[r.reporterUserId]}"
+                         th:text="${c != null} ? ${c.accuracyLabel()} + ' accurate' : '—'">6/8 accurate</div>
+                </td>
+                <td class="text-mono">
+                    <div th:text="${r.createdAt}">-</div>
+                    <div th:classappend="${r.overdue} ? 'text-danger fw-bold' : 'text-muted'">
+                        Due <span th:text="${r.dueAt}">-</span>
+                        <span th:if="${r.overdue}"><i class="bi bi-alarm"></i> OVERDUE</span>
+                    </div>
+                </td>
                 <td class="text-end">
-                    <form th:action="@{/admin/reports/{id}/resolve(id=${r.id})}" method="post" class="d-flex gap-2 justify-content-end">
-                        <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (optional)" style="max-width:180px;"/>
-                        <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-check2"></i> Resolve</button>
+                    <form th:action="@{/admin/reports/{id}/resolve(id=${r.id})}" method="post" class="d-flex flex-column gap-2 align-items-end">
+                        <input type="text" name="resolutionNote" class="form-control form-control-sm" placeholder="Resolution note (optional)" style="max-width:220px;"/>
+                        <div class="btn-group btn-group-sm">
+                            <button type="submit" name="outcome" value="ACTION_TAKEN" class="btn btn-outline-danger" title="Valid violation — hide the content">
+                                <i class="bi bi-eye-slash"></i> Action Taken
+                            </button>
+                            <button type="submit" name="outcome" value="DISMISSED" class="btn btn-outline-secondary" title="Invalid or benign — no action">
+                                <i class="bi bi-x-circle"></i> Dismissed
+                            </button>
+                            <button type="submit" name="outcome" value="DUPLICATE" class="btn btn-outline-secondary" title="Already resolved for this target">
+                                <i class="bi bi-files"></i> Duplicate
+                            </button>
+                        </div>
                     </form>
                 </td>
             </tr>
             <tr th:if="${results.content.isEmpty()}">
-                <td colspan="5" class="admin-table-empty">No pending reports. 🎉</td>
+                <td colspan="7" class="admin-table-empty">No pending reports. 🎉</td>
             </tr>
             </tbody>
         </table>

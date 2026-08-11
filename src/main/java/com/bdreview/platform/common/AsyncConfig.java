@@ -8,6 +8,9 @@ import org.springframework.scheduling.annotation.EnableAsync;
  * summary-regeneration check (summary package) never block the request thread
  * that created/edited a review — matching the spec's "must not wait on the
  * fake-review ML analysis" requirement for the rating-aggregate fast path.
+ * The report workflow's notification dispatch (report package, via
+ * NotificationService) reuses the same self-injected-proxy @Async pattern so
+ * SMS/in-app delivery never blocks report submission or resolution either.
  */
 @Configuration
 @EnableAsync

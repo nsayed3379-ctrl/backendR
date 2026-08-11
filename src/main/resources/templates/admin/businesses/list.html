@@ -66,6 +66,9 @@
                 <td>
                     <span class="badge bg-success" th:if="${b.deletedAt == null}">Active</span>
                     <span class="badge bg-secondary" th:unless="${b.deletedAt == null}">Deleted</span>
+                    <span class="badge bg-danger" th:if="${b.flagged}" th:title="${b.flagReason}">
+                        <i class="bi bi-flag-fill"></i> Flagged
+                    </span>
                 </td>
                 <td class="text-end">
                     <a th:href="@{/admin/businesses/{id}(id=${b.id})}" class="btn btn-sm btn-outline-secondary">View</a>

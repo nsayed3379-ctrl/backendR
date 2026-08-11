@@ -82,6 +82,23 @@ public class Business {
     @Column(nullable = false)
     private boolean verified = false;
 
+    /**
+     * Set when a LISTING report against this business is resolved ACTION_TAKEN
+     * (report package) — a visible platform-wide warning with a reason, not a
+     * takedown. Stored as a plain string (matching the report reason's name())
+     * rather than report.ReportReason, so this package doesn't take on a
+     * dependency on the report package's types.
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean flagged = false;
+
+    @Column(name = "flag_reason", length = 20)
+    private String flagReason;
+
+    @Column(name = "flagged_at")
+    private Instant flaggedAt;
+
     @Builder.Default
     @Column(name = "average_rating", nullable = false, precision = 3, scale = 2)
     private BigDecimal averageRating = BigDecimal.ZERO;

@@ -146,6 +146,13 @@ public class AdminBusinessController {
         return "redirect:/admin/businesses/" + id;
     }
 
+    @PostMapping("/{id}/unflag")
+    public String unflag(@PathVariable UUID id, RedirectAttributes redirectAttributes) {
+        adminBusinessService.unflag(id);
+        redirectAttributes.addFlashAttribute("successMessage", "Flag cleared.");
+        return "redirect:/admin/businesses/" + id;
+    }
+
     private void addReferenceData(Model model) {
         model.addAttribute("categories", categoryRepository.findAll(Sort.by("name")));
         model.addAttribute("cities", cityRepository.findAll(Sort.by("name")));

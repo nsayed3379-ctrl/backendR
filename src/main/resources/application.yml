@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:bd_review}
     username: postgres
-    password: 12345
+    password: 1234
     hikari:
       maximum-pool-size: 20
 
@@ -70,9 +70,17 @@ app:
     max-page-size: 30
   report:
     max-per-hour: 10
+    # Same reporter, same target: caps repeat reports of the one thing (spec: "how many
+    # times within how many days can one user report the same business/review").
+    max-per-target-per-window: 3
+    per-target-window-days: 30
+    # Auto-triage: once a target has this many reports against it (across all reporters),
+    # new reports jump to HIGH priority so admins see multi-reporter targets first — the
+    # outcome itself still always requires an admin's manual decision.
+    high-priority-report-count-threshold: 3
   ml-service:
     # Python FastAPI/LangGraph microservice — see /ml-service in the project root
-    base-url: ${ML_SERVICE_BASE_URL:http://localhost:8081}
+    base-url: ${ML_SERVICE_BASE_URL:http://localhost:8085}
   admin:
     # Thymeleaf admin panel (session/form-login, mounted at /admin — spec §12).
     # On startup, if no ADMIN-role user exists yet, one is auto-provisioned with

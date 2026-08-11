@@ -32,8 +32,8 @@ public class ReportController {
     }
 
     @PostMapping("/{id}/resolve")
-    public ResponseEntity<Void> resolve(@PathVariable UUID id, @RequestBody(required = false) String notes) {
-        reportService.resolve(id, notes);
+    public ResponseEntity<Void> resolve(@PathVariable UUID id, @Valid @RequestBody ResolveReportRequest request) {
+        reportService.resolve(id, request.outcome(), request.resolutionNote());
         return ResponseEntity.noContent().build();
     }
 }

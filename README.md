@@ -16,12 +16,13 @@ one package per spec section, self-contained (own entities, own enums, own repo)
 | `review`       | §4 Reviews/votes, §7 dashboard queries    | Review, ReviewPhoto, ReviewVote + repos (72h edit window, atomic vote/aggregate updates, N+1-safe rating trend) |
 | `verification` | §8 NID verification                       | NidVerification + repo (admin queue, resolve, purge scheduling) |
 | `bookmark`     | §9 Favorites/Collections                  | Collection, Bookmark + repos |
-| `report`       | §11 Report button                         | Report + repo (rate-limit query) |
+| `report`       | §11 Report button (production-grade workflow) | Report + repo — reference code, auto-triaged priority, 48h SLA (`isOverdue`), reporter-credibility query, multi-outcome resolve (ACTION_TAKEN/DISMISSED/DUPLICATE) that reuses `moderation`'s hide logic for review targets |
 | `moderation`   | §12 Admin moderation dashboard             | AuditLog + repo |
 | `gallery`      | §13 Multi-photo gallery                    | BusinessPhoto + repo (metadata only — uploads go direct-to-object-storage) |
 | `fakereview`   | §14 Fake-review detection signals          | FakeReviewSignal + repo (per-signal breakdown behind Review.suspicionScore) |
 | `summary`      | §15 AI review summary                      | BusinessReviewSummary + repo (pessimistic-lock guard against duplicate regeneration) |
 | `messaging`    | §16 Consumer→owner direct inquiry          | MessageThread, Message + repos (shared with §7 owner-reply channel) |
+| `notification` | report-workflow add-on                    | Notification + repo — generic per-user IN_APP/SMS notification store, dispatched async off the request thread (`report` is the first caller; `type` is intentionally extensible) |
 | `common`       | cross-cutting                              | PageRequestDefaults (20/30 pagination clamp used across all listing queries) |
 
 `§10 Share Button` and `§17 Map/Location UX` have no DAO surface of their own:
@@ -55,12 +56,13 @@ where noted). Base path is `/api/v1` unless shown otherwise.
 | `review`       | `/reviews`                               | submit/edit/delete/vote need auth (OTP-verified account) |
 | `verification` | `/nid-verifications`                     | submit needs owner; queue/resolve need ADMIN |
 | `bookmark`     | `/bookmarks`, `/collections`             | auth required |
-| `report`       | `/reports`                               | create needs auth; queue/resolve need ADMIN |
+| `report`       | `/reports`                               | create needs auth; `/reports/{id}/resolve` takes `{outcome, resolutionNote}` (ACTION_TAKEN/DISMISSED/DUPLICATE), queue/resolve need ADMIN |
 | `moderation`   | `/admin/moderation/*`                    | ADMIN only |
 | `gallery`      | `/businesses/{id}/photos`                | owner-only writes, public read |
 | `fakereview`   | `/admin/fake-review-signals/*`           | ADMIN only (analysis itself runs automatically, async, from `review`) |
 | `summary`      | `/businesses/{id}/summary`               | read public, regenerate manual-trigger open (rate-limited by the "10 new reviews" check) |
 | `messaging`    | `/messages`                              | auth required, participant-only |
+| `notification` | `/notifications`                         | auth required, own notifications only (list w/ unread count, mark-read, mark-all-read) |
 
 Auth model: `POST /otp/verify` returns a `TokenPairDto` (JWT access token +
 opaque refresh token). Send `Authorization: Bearer <accessToken>` on
@@ -124,13 +126,19 @@ repositories/services (and adds a small number of read-side query methods to
   create staff accounts, edit/role change, password reset), business
   listings (search/create/edit/verify/soft-delete/restore), reference data
   (categories, cities, areas, attributes), review moderation (visibility
-  override + delete, with fake-review signal breakdown), reports queue,
+  override + delete, with fake-review signal breakdown), reports queue
+  (reference code, auto-triaged priority badge, reporter-credibility
+  accuracy label, overdue/SLA highlight, and three explicit resolve outcomes
+  — Action Taken / Dismissed / Duplicate — instead of a single "Resolve"),
   business-claim queue, NID-verification queue, and the full audit log.
 - Moderation actions (`ReportService.resolve`, `BusinessClaimService.resolve`,
   `NidVerificationService.resolve`, `ModerationService.resolveFlaggedReview`)
-  are called directly from the admin controllers — unmodified — since
-  `common.CurrentUser` reads the admin's id/role straight out of the Spring
-  Security session the same way it reads it out of a JWT.
+  are called directly from the admin controllers, since `common.CurrentUser`
+  reads the admin's id/role straight out of the Spring Security session the
+  same way it reads it out of a JWT — building the admin panel never needed
+  its own copy of this logic. (`ReportService.resolve` itself did gain a
+  multi-outcome signature as part of the report-workflow overhaul described
+  above; both the JWT API and the admin panel call the one updated method.)
 
 ### Migration note: `V4__allow_admin_role.sql`
 

@@ -1,14 +1,23 @@
 package com.bdreview.platform.business;
 
+import com.bdreview.platform.auth.User;
+import com.bdreview.platform.auth.UserRepository;
+import com.bdreview.platform.auth.UserRole;
+import com.bdreview.platform.common.BadRequestException;
 import com.bdreview.platform.common.ForbiddenException;
 import com.bdreview.platform.common.PhoneNumberUtils;
 import com.bdreview.platform.common.ResourceNotFoundException;
+import com.bdreview.platform.notification.NotificationChannel;
+import com.bdreview.platform.notification.NotificationService;
+import com.bdreview.platform.notification.NotificationType;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,17 +39,26 @@ public class BusinessService {
     private final CityRepository cityRepository;
     private final AreaRepository areaRepository;
     private final BusinessAttributeRepository attributeRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
+    private final BusinessService self;
 
     public BusinessService(BusinessRepository businessRepository,
                             CategoryRepository categoryRepository,
                             CityRepository cityRepository,
                             AreaRepository areaRepository,
-                            BusinessAttributeRepository attributeRepository) {
+                            BusinessAttributeRepository attributeRepository,
+                            UserRepository userRepository,
+                            NotificationService notificationService,
+                            @Lazy BusinessService self) {
         this.businessRepository = businessRepository;
         this.categoryRepository = categoryRepository;
         this.cityRepository = cityRepository;
         this.areaRepository = areaRepository;
         this.attributeRepository = attributeRepository;
+        this.userRepository = userRepository;
+        this.notificationService = notificationService;
+        this.self = self;
     }
 
     @Transactional
@@ -107,6 +125,32 @@ public class BusinessService {
     public void softDelete(UUID requesterUserId, UUID businessId) {
         getOwnedOrThrow(requesterUserId, businessId);
         businessRepository.softDelete(businessId);
+    }
+
+    /**
+     * Report workflow: the "next step" for an owner after their listing was flagged (spec:
+     * a flag shouldn't be a dead end). Doesn't clear the flag itself — only an admin can do
+     * that, from the Businesses admin screen, after actually looking at the situation — this
+     * just makes sure every admin gets told the owner is asking for that look.
+     */
+    @Transactional
+    public void requestFlagReview(UUID requesterUserId, UUID businessId) {
+        Business business = getOwnedOrThrow(requesterUserId, businessId);
+        if (!business.isFlagged()) {
+            throw new BadRequestException("This listing is not currently flagged.");
+        }
+        self.notifyAdminsOfFlagReviewRequest(businessId, business.getName());
+    }
+
+    @Async
+    public void notifyAdminsOfFlagReviewRequest(UUID businessId, String businessName) {
+        List<User> admins = userRepository.findByRole(UserRole.ADMIN, Pageable.unpaged()).getContent();
+        for (User admin : admins) {
+            notificationService.create(admin.getId(), NotificationType.FLAG_REVIEW_REQUESTED,
+                    "Flag review requested",
+                    "The owner of \"" + businessName + "\" has requested a review of their flagged listing.",
+                    "BUSINESS", businessId, NotificationChannel.IN_APP);
+        }
     }
 
     @Transactional(readOnly = true)

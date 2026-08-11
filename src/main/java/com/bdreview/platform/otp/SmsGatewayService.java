@@ -6,4 +6,7 @@ package com.bdreview.platform.otp;
  */
 public interface SmsGatewayService {
     void sendOtp(String normalizedPhoneNumber, String otpCode);
+
+    /** General-purpose transactional SMS (e.g. report-workflow notifications) — not OTP-formatted. */
+    void sendMessage(String normalizedPhoneNumber, String message);
 }

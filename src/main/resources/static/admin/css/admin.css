@@ -211,6 +211,10 @@ table.admin-table tbody tr:hover { background: #fafbfc; }
 
 .admin-table-empty { padding: 40px 20px; text-align: center; color: var(--admin-text-muted); }
 
+/* Past-SLA report rows (report queue) — visual flag only, no auto-escalation. */
+table.admin-table tbody tr.admin-row-overdue { background: #fdecea; }
+table.admin-table tbody tr.admin-row-overdue:hover { background: #fbdedb; }
+
 /* ---------------- Badges ---------------- */
 .badge-role-ADMIN { background: #7c3aed; }
 .badge-role-BUSINESS_OWNER { background: #2563eb; }

@@ -4,7 +4,9 @@ import com.bdreview.platform.admin.support.AdminSupport;
 import com.bdreview.platform.business.BusinessRepository;
 import com.bdreview.platform.report.Report;
 import com.bdreview.platform.report.ReportService;
+import com.bdreview.platform.report.ReportStatus;
 import com.bdreview.platform.report.ReportTargetType;
+import com.bdreview.platform.report.ReporterCredibility;
 import com.bdreview.platform.review.ReviewRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Controller;
@@ -38,6 +40,8 @@ public class AdminReportController {
 
         // Small preview of each report's target (review snippet / listing name) for the queue table.
         Map<UUID, String> targetPreviews = new HashMap<>();
+        Map<UUID, ReporterCredibility> reporterStats = new HashMap<>();
+        Map<UUID, Long> targetReportCounts = new HashMap<>();
         for (Report report : results.getContent()) {
             if (report.getTargetType() == ReportTargetType.REVIEW) {
                 reviewRepository.findByIdAndDeletedAtIsNull(report.getTargetId())
@@ -47,20 +51,26 @@ public class AdminReportController {
                 businessRepository.findById(report.getTargetId())
                         .ifPresent(b -> targetPreviews.put(report.getId(), b.getName()));
             }
+            reporterStats.computeIfAbsent(report.getReporterUserId(), reportService::reporterCredibility);
+            targetReportCounts.put(report.getId(),
+                    reportService.reportCountForTarget(report.getTargetType(), report.getTargetId()));
         }
 
         model.addAttribute("results", results);
         model.addAttribute("targetPreviews", targetPreviews);
+        model.addAttribute("reporterStats", reporterStats);
+        model.addAttribute("targetReportCounts", targetReportCounts);
         model.addAttribute("active", "reports");
         return "admin/reports/list";
     }
 
     @PostMapping("/{id}/resolve")
-    public String resolve(@PathVariable UUID id, @RequestParam(required = false) String notes,
+    public String resolve(@PathVariable UUID id, @RequestParam ReportStatus outcome,
+                           @RequestParam(required = false) String resolutionNote,
                            RedirectAttributes redirectAttributes) {
         try {
-            reportService.resolve(id, notes);
-            redirectAttributes.addFlashAttribute("successMessage", "Report resolved.");
+            reportService.resolve(id, outcome, resolutionNote);
+            redirectAttributes.addFlashAttribute("successMessage", "Report marked " + outcome.name() + ".");
         } catch (RuntimeException ex) {
             redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }

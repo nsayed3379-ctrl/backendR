@@ -1,6 +1,7 @@
 package com.bdreview.platform.business;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,7 +22,10 @@ public record BusinessResponse(
         List<String> attributes,
         boolean verified,
         BigDecimal averageRating,
-        int reviewCount
+        int reviewCount,
+        boolean flagged,
+        String flagReason,
+        Instant flaggedAt
 ) {
     public static BusinessResponse from(Business b) {
         return new BusinessResponse(
@@ -31,7 +35,8 @@ public record BusinessResponse(
                 b.getLocation().getY(), b.getLocation().getX(),
                 b.getPriceTier(),
                 b.getAttributes().stream().map(BusinessAttribute::getName).toList(),
-                b.isVerified(), b.getAverageRating(), b.getReviewCount()
+                b.isVerified(), b.getAverageRating(), b.getReviewCount(),
+                b.isFlagged(), b.getFlagReason(), b.getFlaggedAt()
         );
     }
 }

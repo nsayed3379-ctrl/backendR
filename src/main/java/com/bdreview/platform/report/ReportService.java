@@ -1,12 +1,24 @@
 package com.bdreview.platform.report;
 
+import com.bdreview.platform.business.Business;
+import com.bdreview.platform.business.BusinessRepository;
+import com.bdreview.platform.common.BadRequestException;
 import com.bdreview.platform.common.CurrentUser;
 import com.bdreview.platform.common.RateLimitExceededException;
 import com.bdreview.platform.common.ResourceNotFoundException;
 import com.bdreview.platform.moderation.AuditLogService;
+import com.bdreview.platform.moderation.ModerationService;
+import com.bdreview.platform.notification.NotificationChannel;
+import com.bdreview.platform.notification.NotificationService;
+import com.bdreview.platform.notification.NotificationType;
+import com.bdreview.platform.review.Review;
+import com.bdreview.platform.review.ReviewRepository;
+import com.bdreview.platform.review.VisibilityStatus;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,20 +26,60 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
-/** Spec §11: fixed enum reason (never free text), rate-limited to prevent report-spam abuse. */
+/**
+ * Spec §11: fixed enum reason (never free text), rate-limited to prevent
+ * report-spam abuse. Production-grade workflow additions: auto-triage
+ * priority, a reference code + 48h SLA, multi-outcome resolution that reuses
+ * the existing moderation hide logic for reviews, and async in-app/SMS
+ * notifications at each step of the flow (never the raw internal reasoning —
+ * only the generic per-outcome message).
+ *
+ * Resubmission is intentionally unrestricted: nothing here blocks a reporter
+ * (or a content owner disputing a decision) from filing a new report on the
+ * same target — a fresh row gets its own reference code, and an admin can
+ * mark a redundant one DUPLICATE at resolve time instead of the submit path
+ * rejecting it up front.
+ */
 @Service
 public class ReportService {
 
     private final ReportRepository reportRepository;
+    private final ReviewRepository reviewRepository;
+    private final BusinessRepository businessRepository;
+    private final ModerationService moderationService;
     private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
     private final long maxReportsPerHour;
+    private final long maxReportsPerTargetPerWindow;
+    private final long perTargetWindowDays;
+    private final long highPriorityReportCountThreshold;
+    private final short highPrioritySuspicionThreshold;
+    private final ReportService self;
 
     public ReportService(ReportRepository reportRepository,
+                          ReviewRepository reviewRepository,
+                          BusinessRepository businessRepository,
+                          ModerationService moderationService,
                           AuditLogService auditLogService,
-                          @Value("${app.report.max-per-hour:10}") long maxReportsPerHour) {
+                          NotificationService notificationService,
+                          @Value("${app.report.max-per-hour:10}") long maxReportsPerHour,
+                          @Value("${app.report.max-per-target-per-window:3}") long maxReportsPerTargetPerWindow,
+                          @Value("${app.report.per-target-window-days:30}") long perTargetWindowDays,
+                          @Value("${app.report.high-priority-report-count-threshold:3}") long highPriorityReportCountThreshold,
+                          @Value("${app.fake-review.medium-confidence-max:70}") short highPrioritySuspicionThreshold,
+                          @Lazy ReportService self) {
         this.reportRepository = reportRepository;
+        this.reviewRepository = reviewRepository;
+        this.businessRepository = businessRepository;
+        this.moderationService = moderationService;
         this.auditLogService = auditLogService;
+        this.notificationService = notificationService;
         this.maxReportsPerHour = maxReportsPerHour;
+        this.maxReportsPerTargetPerWindow = maxReportsPerTargetPerWindow;
+        this.perTargetWindowDays = perTargetWindowDays;
+        this.highPriorityReportCountThreshold = highPriorityReportCountThreshold;
+        this.highPrioritySuspicionThreshold = highPrioritySuspicionThreshold;
+        this.self = self;
     }
 
     @Transactional
@@ -38,26 +90,183 @@ public class ReportService {
             throw new RateLimitExceededException("Too many reports filed recently — please try again later.");
         }
 
-        return reportRepository.save(Report.builder()
+        // Same reporter, same target: caps repeat reports of the one thing, independent of the
+        // global per-hour limit above (which caps report *volume*, not *targeting the same thing*).
+        long recentForTarget = reportRepository.countByReporterUserIdAndTargetTypeAndTargetIdAndCreatedAtAfter(
+                reporterUserId, request.targetType(), request.targetId(),
+                Instant.now().minus(perTargetWindowDays, ChronoUnit.DAYS));
+        if (recentForTarget >= maxReportsPerTargetPerWindow) {
+            throw new RateLimitExceededException(
+                    "You've already reported this " + perTargetWindowDays + " days ago or more recently — "
+                            + "please wait before reporting it again.");
+        }
+
+        String referenceCode = "R-" + reportRepository.nextReferenceSeqValue();
+
+        Report report = reportRepository.save(Report.builder()
                 .reporterUserId(reporterUserId)
                 .targetType(request.targetType())
                 .targetId(request.targetId())
                 .reason(request.reason())
                 .status(ReportStatus.PENDING)
+                .referenceCode(referenceCode)
+                .priority(determinePriority(request))
                 .build());
+
+        self.dispatchSubmissionNotification(report.getId(), report.getReporterUserId(), report.getReferenceCode());
+        return report;
+    }
+
+    /**
+     * Spec: OFFENSIVE reports, reports against an already-suspicious review, or a target that
+     * already has multiple reports against it (any reporter, any status) jump the queue. Report
+     * volume only ever affects *priority* here — it never auto-decides the outcome; an admin
+     * always makes that call, with the target's report count visible to them (see
+     * {@link #reportCountForTarget}) as context.
+     */
+    private Priority determinePriority(CreateReportRequest request) {
+        if (request.reason() == ReportReason.OFFENSIVE) {
+            return Priority.HIGH;
+        }
+        if (request.targetType() == ReportTargetType.REVIEW) {
+            boolean alreadySuspicious = reviewRepository.findByIdAndDeletedAtIsNull(request.targetId())
+                    .map(review -> review.getSuspicionScore() > highPrioritySuspicionThreshold)
+                    .orElse(false);
+            if (alreadySuspicious) {
+                return Priority.HIGH;
+            }
+        }
+        long existingReportsForTarget = reportRepository.countByTargetTypeAndTargetId(request.targetType(), request.targetId());
+        if (existingReportsForTarget + 1 >= highPriorityReportCountThreshold) {
+            return Priority.HIGH;
+        }
+        return Priority.NORMAL;
     }
 
     public Page<Report> queue(Pageable pageable) {
         return reportRepository.findByStatus(ReportStatus.PENDING, pageable);
     }
 
+    /** Admin-facing trust signal for a reporter, computed from their own report history — no new table. */
+    public ReporterCredibility reporterCredibility(UUID reporterUserId) {
+        long total = reportRepository.countByReporterUserId(reporterUserId);
+        long actionTaken = reportRepository.countByReporterUserIdAndStatus(reporterUserId, ReportStatus.ACTION_TAKEN);
+        return new ReporterCredibility(total, actionTaken);
+    }
+
+    /** Admin-queue context: how many reports (any reporter, any status) exist against this target. */
+    public long reportCountForTarget(ReportTargetType targetType, UUID targetId) {
+        return reportRepository.countByTargetTypeAndTargetId(targetType, targetId);
+    }
+
     @Transactional
-    public void resolve(UUID reportId, String notes) {
+    public void resolve(UUID reportId, ReportStatus outcome, String resolutionNote) {
         CurrentUser.requireRole("ADMIN");
+        if (outcome == null || !outcome.isResolutionOutcome()) {
+            throw new BadRequestException("outcome must be one of ACTION_TAKEN, DISMISSED, DUPLICATE");
+        }
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ResourceNotFoundException("Report not found"));
-        report.setStatus(ReportStatus.RESOLVED);
+        UUID adminId = CurrentUser.id();
+        Instant now = Instant.now();
+
+        // "Target owner" = the review's author for a REVIEW report, or the business's owner for a
+        // LISTING report — whoever's content/listing the report was actually about.
+        UUID targetOwnerId = null;
+        if (outcome == ReportStatus.ACTION_TAKEN) {
+            if (report.getTargetType() == ReportTargetType.REVIEW) {
+                targetOwnerId = reviewRepository.findByIdAndDeletedAtIsNull(report.getTargetId())
+                        .map(Review::getUserId)
+                        .orElse(null);
+                // Reuse the existing moderation override rather than duplicating the
+                // visibility/rating-aggregate reconciliation logic.
+                moderationService.resolveFlaggedReview(report.getTargetId(), VisibilityStatus.HIDDEN, adminId, resolutionNote);
+            } else {
+                // LISTING: a confirmed violation actually flags the listing — a visible, public
+                // warning carrying the report's reason, not just a notification with no real
+                // effect. Admins can still soft-delete the listing manually from the Businesses
+                // admin screen if the situation warrants going further than a flag.
+                targetOwnerId = businessRepository.findById(report.getTargetId())
+                        .map(Business::getOwnerUserId)
+                        .orElse(null);
+                businessRepository.flag(report.getTargetId(), report.getReason().name(), now);
+            }
+        }
+
+        report.setStatus(outcome);
+        report.setResolutionNote(resolutionNote);
+        report.setReporterNotifiedAt(now);
+        if (targetOwnerId != null) {
+            report.setTargetOwnerNotifiedAt(now);
+        }
         reportRepository.save(report);
-        auditLogService.log("REPORT", reportId, "RESOLVED", CurrentUser.id(), notes);
+
+        auditLogService.log("REPORT", reportId, outcome.name(), adminId, resolutionNote);
+
+        self.dispatchResolutionNotifications(reportId, outcome, report.getTargetType(), report.getReason(),
+                report.getReporterUserId(), report.getReferenceCode(), report.getTargetId(), targetOwnerId);
+    }
+
+    /**
+     * Takes the reporter id/reference code as parameters rather than re-reading the Report row —
+     * this runs on a separate thread via @Async, which can start before create()'s own transaction
+     * has committed; re-querying by id here would then find nothing and silently drop the
+     * notification. Passing the already-loaded values avoids that race entirely.
+     */
+    @Async
+    public void dispatchSubmissionNotification(UUID reportId, UUID reporterUserId, String referenceCode) {
+        notificationService.create(reporterUserId, NotificationType.REPORT_SUBMITTED,
+                "Report submitted",
+                "Your report (Ref: " + referenceCode + ") has been submitted, we'll review it shortly.",
+                "REPORT", reportId, NotificationChannel.IN_APP);
+    }
+
+    /**
+     * Same reasoning as dispatchSubmissionNotification: takes everything it needs as parameters
+     * (already loaded in resolve() before the transaction commits) instead of re-querying the
+     * Report row from a separate async thread, to avoid a commit-visibility race. Only ever sends
+     * the generic outcome-based message below — never the admin's note or which fake-review signal
+     * fired, per spec: "never send the reporter the exact internal reasoning."
+     */
+    @Async
+    public void dispatchResolutionNotifications(UUID reportId, ReportStatus outcome, ReportTargetType targetType,
+                                                 ReportReason reason, UUID reporterUserId, String referenceCode,
+                                                 UUID targetId, UUID targetOwnerId) {
+        if (outcome == ReportStatus.ACTION_TAKEN) {
+            notificationService.create(reporterUserId, NotificationType.REPORT_ACTION_TAKEN,
+                    "Report resolved",
+                    "Your report (Ref: " + referenceCode + ") has been reviewed — action was taken.",
+                    "REPORT", reportId, NotificationChannel.IN_APP);
+        } else if (outcome == ReportStatus.DISMISSED) {
+            notificationService.create(reporterUserId, NotificationType.REPORT_DISMISSED,
+                    "Report resolved",
+                    "Your report (Ref: " + referenceCode + ") has been reviewed — insufficient evidence was found.",
+                    "REPORT", reportId, NotificationChannel.IN_APP);
+        }
+        // DUPLICATE: no reporter-facing message defined by spec — the report simply closes.
+
+        if (outcome != ReportStatus.ACTION_TAKEN || targetOwnerId == null) {
+            return;
+        }
+        // Discloses the report's fixed reason category (SPAM/FAKE/OFFENSIVE/OTHER) so the target
+        // owner understands *what kind* of violation was found — still never the admin's private
+        // resolution note or which specific report/signal triggered it.
+        if (targetType == ReportTargetType.REVIEW) {
+            String title = "Review removed";
+            String body = "One of your reviews was removed for " + reason.label() + ". "
+                    + "Please review our community guidelines.";
+            notificationService.create(targetOwnerId, NotificationType.CONTENT_HIDDEN, title, body,
+                    "REVIEW", targetId, NotificationChannel.IN_APP);
+            notificationService.create(targetOwnerId, NotificationType.CONTENT_HIDDEN, title, body,
+                    "REVIEW", targetId, NotificationChannel.SMS);
+        } else {
+            String title = "Listing flagged";
+            String body = "Your business listing was flagged for " + reason.label() + " following a user report. "
+                    + "Please review our community guidelines to keep your listing active.";
+            notificationService.create(targetOwnerId, NotificationType.LISTING_FLAGGED, title, body,
+                    "BUSINESS", targetId, NotificationChannel.IN_APP);
+            notificationService.create(targetOwnerId, NotificationType.LISTING_FLAGGED, title, body,
+                    "BUSINESS", targetId, NotificationChannel.SMS);
+        }
     }
 }

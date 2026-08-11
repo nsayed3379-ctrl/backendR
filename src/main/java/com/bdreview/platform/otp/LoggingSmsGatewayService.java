@@ -16,4 +16,9 @@ public class LoggingSmsGatewayService implements SmsGatewayService {
     public void sendOtp(String normalizedPhoneNumber, String otpCode) {
         log.info("[DEV SMS] OTP for {}: {}", normalizedPhoneNumber, otpCode);
     }
+
+    @Override
+    public void sendMessage(String normalizedPhoneNumber, String message) {
+        log.info("[DEV SMS] Message for {}: {}", normalizedPhoneNumber, message);
+    }
 }

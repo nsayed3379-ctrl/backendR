@@ -38,6 +38,13 @@ public class BusinessController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Report workflow: owner's "next step" after a flag — notifies every admin, doesn't clear it. */
+    @PostMapping("/{id}/flag/request-review")
+    public ResponseEntity<Void> requestFlagReview(@PathVariable UUID id) {
+        businessService.requestFlagReview(CurrentUser.id(), id);
+        return ResponseEntity.accepted().build();
+    }
+
     @GetMapping("/{slug}")
     public ResponseEntity<BusinessResponse> getBySlug(@PathVariable String slug) {
         return ResponseEntity.ok(businessService.getBySlug(slug));
