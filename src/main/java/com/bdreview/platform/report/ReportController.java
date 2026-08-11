@@ -1,5 +1,7 @@
 package com.bdreview.platform.report;
 
+import com.bdreview.platform.auth.User;
+import com.bdreview.platform.auth.UserRepository;
 import com.bdreview.platform.common.CurrentUser;
 import com.bdreview.platform.common.PageResponse;
 import jakarta.validation.Valid;
@@ -14,9 +16,11 @@ import java.util.UUID;
 public class ReportController {
 
     private final ReportService reportService;
+    private final UserRepository userRepository;
 
-    public ReportController(ReportService reportService) {
+    public ReportController(ReportService reportService, UserRepository userRepository) {
         this.reportService = reportService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping
@@ -25,10 +29,13 @@ public class ReportController {
     }
 
     @GetMapping("/queue")
-    public ResponseEntity<PageResponse<Report>> queue(
+    public ResponseEntity<PageResponse<ReportResponse>> queue(
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         CurrentUser.requireRole("ADMIN");
-        return ResponseEntity.ok(PageResponse.of(reportService.queue(PageRequest.of(page, size))));
+        var results = reportService.queue(PageRequest.of(page, size))
+                .map(r -> ReportResponse.from(r, userRepository.findById(r.getReporterUserId())
+                        .map(User::getName).orElse(null)));
+        return ResponseEntity.ok(PageResponse.of(results));
     }
 
     @PostMapping("/{id}/resolve")

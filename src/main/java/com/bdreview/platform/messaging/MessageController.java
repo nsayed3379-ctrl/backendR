@@ -1,12 +1,17 @@
 package com.bdreview.platform.messaging;
 
+import com.bdreview.platform.auth.User;
+import com.bdreview.platform.auth.UserRepository;
 import com.bdreview.platform.common.CurrentUser;
 import com.bdreview.platform.common.PageResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -14,21 +19,25 @@ import java.util.UUID;
 public class MessageController {
 
     private final MessageService messageService;
+    private final UserRepository userRepository;
 
-    public MessageController(MessageService messageService) {
+    public MessageController(MessageService messageService, UserRepository userRepository) {
         this.messageService = messageService;
+        this.userRepository = userRepository;
     }
 
     /** Consumer starts (or continues) a thread with a business — see spec §16. */
     @PostMapping
-    public ResponseEntity<Message> send(@Valid @RequestBody SendMessageRequest request) {
-        return ResponseEntity.ok(messageService.send(CurrentUser.id(), request));
+    public ResponseEntity<MessageResponse> send(@Valid @RequestBody SendMessageRequest request) {
+        Message message = messageService.send(CurrentUser.id(), request);
+        return ResponseEntity.ok(MessageResponse.from(message, nameOf(message.getSenderUserId())));
     }
 
     /** Either party replies inside an existing thread — this is also how owners reply to reviews' DM channel. */
     @PostMapping("/threads/{threadId}/reply")
-    public ResponseEntity<Message> reply(@PathVariable UUID threadId, @Valid @RequestBody ReplyRequest request) {
-        return ResponseEntity.ok(messageService.reply(CurrentUser.id(), threadId, request.content()));
+    public ResponseEntity<MessageResponse> reply(@PathVariable UUID threadId, @Valid @RequestBody ReplyRequest request) {
+        Message message = messageService.reply(CurrentUser.id(), threadId, request.content());
+        return ResponseEntity.ok(MessageResponse.from(message, nameOf(message.getSenderUserId())));
     }
 
     @PostMapping("/threads/{threadId}/read")
@@ -38,19 +47,39 @@ public class MessageController {
     }
 
     @GetMapping("/threads/{threadId}")
-    public ResponseEntity<PageResponse<Message>> history(@PathVariable UUID threadId,
+    public ResponseEntity<PageResponse<MessageResponse>> history(@PathVariable UUID threadId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(PageResponse.of(messageService.history(threadId, page, size)));
+        Page<Message> messages = messageService.history(threadId, page, size);
+        Map<UUID, String> names = namesOf(messages.getContent().stream().map(Message::getSenderUserId).toList());
+        return ResponseEntity.ok(PageResponse.of(messages.map(m -> MessageResponse.from(m, names.get(m.getSenderUserId())))));
     }
 
     @GetMapping("/threads/mine")
-    public ResponseEntity<List<MessageThread>> myThreads() {
-        return ResponseEntity.ok(messageService.myThreadsAsConsumer(CurrentUser.id()));
+    public ResponseEntity<List<MessageThreadResponse>> myThreads() {
+        List<MessageThread> threads = messageService.myThreadsAsConsumer(CurrentUser.id());
+        Map<UUID, String> names = namesOf(threads.stream().map(MessageThread::getConsumerUserId).toList());
+        return ResponseEntity.ok(threads.stream()
+                .map(t -> MessageThreadResponse.from(t, names.get(t.getConsumerUserId())))
+                .toList());
     }
 
     @GetMapping("/threads/business-inbox")
-    public ResponseEntity<List<MessageThread>> businessInbox() {
+    public ResponseEntity<List<MessageThreadResponse>> businessInbox() {
         CurrentUser.requireRole("BUSINESS_OWNER");
-        return ResponseEntity.ok(messageService.threadsForMyBusinesses(CurrentUser.id()));
+        List<MessageThread> threads = messageService.threadsForMyBusinesses(CurrentUser.id());
+        Map<UUID, String> names = namesOf(threads.stream().map(MessageThread::getConsumerUserId).toList());
+        return ResponseEntity.ok(threads.stream()
+                .map(t -> MessageThreadResponse.from(t, names.get(t.getConsumerUserId())))
+                .toList());
+    }
+
+    private String nameOf(UUID userId) {
+        return userRepository.findById(userId).map(User::getName).orElse(null);
+    }
+
+    private Map<UUID, String> namesOf(List<UUID> userIds) {
+        Map<UUID, String> names = new HashMap<>();
+        userRepository.findAllById(userIds).forEach(u -> names.put(u.getId(), u.getName()));
+        return names;
     }
 }

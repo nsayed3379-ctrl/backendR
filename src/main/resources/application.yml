@@ -80,7 +80,7 @@ app:
     high-priority-report-count-threshold: 3
   ml-service:
     # Python FastAPI/LangGraph microservice — see /ml-service in the project root
-    base-url: ${ML_SERVICE_BASE_URL:http://localhost:8085}
+    base-url: ${ML_SERVICE_BASE_URL:http://localhost:8081}
   admin:
     # Thymeleaf admin panel (session/form-login, mounted at /admin — spec §12).
     # On startup, if no ADMIN-role user exists yet, one is auto-provisioned with

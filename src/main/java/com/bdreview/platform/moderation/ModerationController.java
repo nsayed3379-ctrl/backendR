@@ -1,8 +1,8 @@
 package com.bdreview.platform.moderation;
 
+import com.bdreview.platform.auth.UserRepository;
 import com.bdreview.platform.common.CurrentUser;
 import com.bdreview.platform.common.PageResponse;
-import com.bdreview.platform.review.Review;
 import com.bdreview.platform.review.VisibilityStatus;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +17,13 @@ public class ModerationController {
 
     private final ModerationService moderationService;
     private final AuditLogRepository auditLogRepository;
+    private final UserRepository userRepository;
 
-    public ModerationController(ModerationService moderationService, AuditLogRepository auditLogRepository) {
+    public ModerationController(ModerationService moderationService, AuditLogRepository auditLogRepository,
+                                 UserRepository userRepository) {
         this.moderationService = moderationService;
         this.auditLogRepository = auditLogRepository;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/summary")
@@ -30,10 +33,13 @@ public class ModerationController {
     }
 
     @GetMapping("/flagged-reviews")
-    public ResponseEntity<PageResponse<Review>> flaggedReviews(
+    public ResponseEntity<PageResponse<FlaggedReviewResponse>> flaggedReviews(
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         CurrentUser.requireRole("ADMIN");
-        return ResponseEntity.ok(PageResponse.of(moderationService.flaggedReviews(PageRequest.of(page, size))));
+        var results = moderationService.flaggedReviews(PageRequest.of(page, size))
+                .map(r -> FlaggedReviewResponse.from(r, userRepository.findById(r.getUserId())
+                        .map(u -> u.getName()).orElse(null)));
+        return ResponseEntity.ok(PageResponse.of(results));
     }
 
     /** Admin: hide or restore a flagged review directly from the moderation queue. */

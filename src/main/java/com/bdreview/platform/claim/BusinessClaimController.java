@@ -1,5 +1,7 @@
 package com.bdreview.platform.claim;
 
+import com.bdreview.platform.auth.User;
+import com.bdreview.platform.auth.UserRepository;
 import com.bdreview.platform.common.CurrentUser;
 import com.bdreview.platform.common.PageResponse;
 import jakarta.validation.Valid;
@@ -15,9 +17,11 @@ import java.util.UUID;
 public class BusinessClaimController {
 
     private final BusinessClaimService claimService;
+    private final UserRepository userRepository;
 
-    public BusinessClaimController(BusinessClaimService claimService) {
+    public BusinessClaimController(BusinessClaimService claimService, UserRepository userRepository) {
         this.claimService = claimService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping
@@ -31,10 +35,13 @@ public class BusinessClaimController {
     }
 
     @GetMapping("/queue")
-    public ResponseEntity<PageResponse<BusinessClaim>> queue(
+    public ResponseEntity<PageResponse<BusinessClaimResponse>> queue(
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         CurrentUser.requireRole("ADMIN");
-        return ResponseEntity.ok(PageResponse.of(claimService.queue(PageRequest.of(page, size))));
+        var results = claimService.queue(PageRequest.of(page, size))
+                .map(c -> BusinessClaimResponse.from(c, userRepository.findById(c.getClaimantUserId())
+                        .map(User::getName).orElse(null)));
+        return ResponseEntity.ok(PageResponse.of(results));
     }
 
     @PostMapping("/{id}/resolve")

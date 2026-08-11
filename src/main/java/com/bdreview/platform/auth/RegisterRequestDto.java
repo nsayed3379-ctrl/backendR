@@ -2,10 +2,12 @@ package com.bdreview.platform.auth;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public record RegisterRequestDto(
         @NotBlank String phoneNumber,
         @NotBlank String code,
         @NotBlank String password,
-        @NotNull UserRole role) {
+        @NotNull UserRole role,
+        @NotBlank @Size(max = 120) String name) {
 }

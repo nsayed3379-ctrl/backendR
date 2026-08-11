@@ -58,9 +58,12 @@ public class AuthService {
      * accounts cannot be self-registered). Auto-logs-in on success.
      */
     @Transactional
-    public TokenPairDto register(String rawPhoneNumber, String code, String password, UserRole role) {
+    public TokenPairDto register(String rawPhoneNumber, String code, String password, UserRole role, String name) {
         if (role == null || role == UserRole.ADMIN) {
             throw new BadRequestException("Invalid role for self-registration.");
+        }
+        if (name == null || name.isBlank()) {
+            throw new BadRequestException("Name is required.");
         }
         String phone = PhoneNumberUtils.normalize(rawPhoneNumber);
         validatePassword(password);
@@ -75,6 +78,7 @@ public class AuthService {
                 .role(role)
                 .otpVerified(true)
                 .passwordHash(passwordEncoder.encode(password))
+                .name(name.trim())
                 .build());
 
         return issueNewTokenFamily(user.getId(), user.getRole());

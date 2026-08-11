@@ -1,6 +1,7 @@
 package com.bdreview.platform.admin.controller;
 
 import com.bdreview.platform.admin.support.AdminSupport;
+import com.bdreview.platform.auth.UserRepository;
 import com.bdreview.platform.business.BusinessRepository;
 import com.bdreview.platform.report.Report;
 import com.bdreview.platform.report.ReportService;
@@ -25,13 +26,16 @@ public class AdminReportController {
     private final ReportService reportService;
     private final ReviewRepository reviewRepository;
     private final BusinessRepository businessRepository;
+    private final UserRepository userRepository;
 
     public AdminReportController(ReportService reportService,
                                   ReviewRepository reviewRepository,
-                                  BusinessRepository businessRepository) {
+                                  BusinessRepository businessRepository,
+                                  UserRepository userRepository) {
         this.reportService = reportService;
         this.reviewRepository = reviewRepository;
         this.businessRepository = businessRepository;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -42,6 +46,7 @@ public class AdminReportController {
         Map<UUID, String> targetPreviews = new HashMap<>();
         Map<UUID, ReporterCredibility> reporterStats = new HashMap<>();
         Map<UUID, Long> targetReportCounts = new HashMap<>();
+        Map<UUID, String> reporterNames = new HashMap<>();
         for (Report report : results.getContent()) {
             if (report.getTargetType() == ReportTargetType.REVIEW) {
                 reviewRepository.findByIdAndDeletedAtIsNull(report.getTargetId())
@@ -54,12 +59,15 @@ public class AdminReportController {
             reporterStats.computeIfAbsent(report.getReporterUserId(), reportService::reporterCredibility);
             targetReportCounts.put(report.getId(),
                     reportService.reportCountForTarget(report.getTargetType(), report.getTargetId()));
+            reporterNames.computeIfAbsent(report.getReporterUserId(),
+                    id -> userRepository.findById(id).map(u -> u.getName()).orElse(null));
         }
 
         model.addAttribute("results", results);
         model.addAttribute("targetPreviews", targetPreviews);
         model.addAttribute("reporterStats", reporterStats);
         model.addAttribute("targetReportCounts", targetReportCounts);
+        model.addAttribute("reporterNames", reporterNames);
         model.addAttribute("active", "reports");
         return "admin/reports/list";
     }

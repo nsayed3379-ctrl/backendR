@@ -1,5 +1,6 @@
 package com.bdreview.platform.review;
 
+import com.bdreview.platform.auth.UserRepository;
 import com.bdreview.platform.common.CurrentUser;
 import com.bdreview.platform.common.PageResponse;
 import jakarta.validation.Valid;
@@ -14,9 +15,11 @@ import java.util.UUID;
 public class ReviewController {
 
     private final ReviewService reviewService;
+    private final UserRepository userRepository;
 
-    public ReviewController(ReviewService reviewService) {
+    public ReviewController(ReviewService reviewService, UserRepository userRepository) {
         this.reviewService = reviewService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping
@@ -74,6 +77,7 @@ public class ReviewController {
 
     private ReviewResponse toResponse(Review review) {
         List<String> photoUrls = reviewService.photosFor(review.getId()).stream().map(ReviewPhoto::getUrl).toList();
-        return ReviewResponse.from(review, photoUrls);
+        String userName = userRepository.findById(review.getUserId()).map(u -> u.getName()).orElse(null);
+        return ReviewResponse.from(review, photoUrls, userName);
     }
 }

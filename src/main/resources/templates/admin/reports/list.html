@@ -48,7 +48,7 @@
                 </td>
                 <td><span class="badge bg-warning text-dark" th:text="${r.reason}">-</span></td>
                 <td>
-                    <div class="text-mono small" th:text="${r.reporterUserId}">-</div>
+                    <div class="small" th:text="${reporterNames[r.reporterUserId]} ?: ${r.reporterUserId}">-</div>
                     <div class="text-muted small"
                          th:with="c=${reporterStats[r.reporterUserId]}"
                          th:text="${c != null} ? ${c.accuracyLabel()} + ' accurate' : '—'">6/8 accurate</div>
