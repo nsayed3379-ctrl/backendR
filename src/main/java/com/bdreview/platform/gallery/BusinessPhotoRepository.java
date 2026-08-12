@@ -10,6 +10,9 @@ public interface BusinessPhotoRepository extends JpaRepository<BusinessPhoto, UU
     /** 5-10 photos per business beyond the cover photo (spec §13); returned in display order. */
     List<BusinessPhoto> findByBusinessIdOrderBySortOrderAsc(UUID businessId);
 
+    /** Batched gallery lookup for listing pages (search/mine) — avoids one query per business. */
+    List<BusinessPhoto> findByBusinessIdInOrderBySortOrderAsc(List<UUID> businessIds);
+
     long countByBusinessId(UUID businessId);
 
     void deleteByIdAndBusinessId(UUID id, UUID businessId);

@@ -16,6 +16,8 @@ public record BusinessResponse(
         String operatingHours,
         String description,
         String coverPhotoUrl,
+        String logoUrl,
+        List<String> photoUrls,
         double latitude,
         double longitude,
         PriceTier priceTier,
@@ -27,11 +29,13 @@ public record BusinessResponse(
         String flagReason,
         Instant flaggedAt
 ) {
-    public static BusinessResponse from(Business b) {
+    /** photoUrls: cover photo (if any) followed by gallery photos, in display order — card carousel source. */
+    public static BusinessResponse from(Business b, List<String> photoUrls) {
         return new BusinessResponse(
                 b.getId(), b.getName(), b.getSlug(),
                 b.getCategory().getName(), b.getCity().getName(), b.getArea().getName(),
                 b.getContactNumber(), b.getOperatingHours(), b.getDescription(), b.getCoverPhotoUrl(),
+                b.getLogoUrl(), photoUrls,
                 b.getLocation().getY(), b.getLocation().getX(),
                 b.getPriceTier(),
                 b.getAttributes().stream().map(BusinessAttribute::getName).toList(),

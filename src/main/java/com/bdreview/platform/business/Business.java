@@ -61,6 +61,10 @@ public class Business {
     @Column(name = "cover_photo_url", columnDefinition = "text")
     private String coverPhotoUrl;
 
+    /** Circular profile/logo picture shown on business cards — distinct from the cover/gallery photos. */
+    @Column(name = "logo_url", columnDefinition = "text")
+    private String logoUrl;
+
     /** PostGIS geography(Point,4326), GiST-indexed — see V1__init.sql. */
     @Column(nullable = false, columnDefinition = "geography(Point,4326)")
     private Point location;

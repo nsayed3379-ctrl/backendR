@@ -21,15 +21,13 @@ public class BusinessController {
     @PostMapping
     public ResponseEntity<BusinessResponse> create(@Valid @RequestBody CreateBusinessRequest request) {
         CurrentUser.requireRole("BUSINESS_OWNER");
-        Business created = businessService.create(CurrentUser.id(), request);
-        return ResponseEntity.ok(BusinessResponse.from(created));
+        return ResponseEntity.ok(businessService.create(CurrentUser.id(), request));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<BusinessResponse> update(@PathVariable UUID id,
                                                      @Valid @RequestBody UpdateBusinessRequest request) {
-        Business updated = businessService.update(CurrentUser.id(), id, request);
-        return ResponseEntity.ok(BusinessResponse.from(updated));
+        return ResponseEntity.ok(businessService.update(CurrentUser.id(), id, request));
     }
 
     @DeleteMapping("/{id}")
