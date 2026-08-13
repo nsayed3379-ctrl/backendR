@@ -1,6 +1,7 @@
 package com.bdreview.platform.business;
 
 import com.bdreview.platform.common.CurrentUser;
+import com.bdreview.platform.review.VoteRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +42,13 @@ public class BusinessController {
     public ResponseEntity<Void> requestFlagReview(@PathVariable UUID id) {
         businessService.requestFlagReview(CurrentUser.id(), id);
         return ResponseEntity.accepted().build();
+    }
+
+    /** Business-card reaction row — toggles a direct reaction to the business as a whole. */
+    @PostMapping("/{id}/react")
+    public ResponseEntity<Void> react(@PathVariable UUID id, @Valid @RequestBody VoteRequest request) {
+        businessService.react(CurrentUser.id(), id, request.voteType());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{slug}")

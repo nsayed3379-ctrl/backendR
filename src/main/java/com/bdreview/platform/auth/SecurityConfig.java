@@ -41,6 +41,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // §6 OTP + §5 auth endpoints must be reachable before a token exists
                         .requestMatchers("/api/v1/auth/**", "/api/v1/otp/**", "/actuator/health").permitAll()
+                        // caller-specific reads must NOT fall under the public wildcard below —
+                        // evaluated first since Spring Security takes the first matching rule
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/businesses/mine").authenticated()
                         // public browse/search/profile-view surface (spec §16 consumer capabilities)
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                 "/api/v1/businesses/**", "/api/v1/categories/**", "/api/v1/cities/**",

@@ -27,10 +27,17 @@ public record BusinessResponse(
         int reviewCount,
         boolean flagged,
         String flagReason,
-        Instant flaggedAt
+        Instant flaggedAt,
+        // Counts of direct business-level reactions (business.BusinessReaction) — a user
+        // reacting to the business as a whole, distinct from voting on one specific
+        // review (see review.ReviewResponse's usefulCount/etc. for that). Live-clickable
+        // from the business card via POST /businesses/{id}/react.
+        int totalUsefulCount,
+        int totalFunnyCount,
+        int totalCoolCount
 ) {
     /** photoUrls: cover photo (if any) followed by gallery photos, in display order — card carousel source. */
-    public static BusinessResponse from(Business b, List<String> photoUrls) {
+    public static BusinessResponse from(Business b, List<String> photoUrls, int[] reactionTotals) {
         return new BusinessResponse(
                 b.getId(), b.getName(), b.getSlug(),
                 b.getCategory().getName(), b.getCity().getName(), b.getArea().getName(),
@@ -40,7 +47,8 @@ public record BusinessResponse(
                 b.getPriceTier(),
                 b.getAttributes().stream().map(BusinessAttribute::getName).toList(),
                 b.isVerified(), b.getAverageRating(), b.getReviewCount(),
-                b.isFlagged(), b.getFlagReason(), b.getFlaggedAt()
+                b.isFlagged(), b.getFlagReason(), b.getFlaggedAt(),
+                reactionTotals[0], reactionTotals[1], reactionTotals[2]
         );
     }
 }
