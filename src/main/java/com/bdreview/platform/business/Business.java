@@ -103,6 +103,24 @@ public class Business {
     @Column(name = "flagged_at")
     private Instant flaggedAt;
 
+    /** Business-level reaction aggregates (Like/Dislike/Love/Wow on the card) — written only via
+     *  atomic SQL increments in {@link BusinessRepository}, same convention as averageRating/reviewCount. */
+    @Builder.Default
+    @Column(name = "total_like_count", nullable = false)
+    private int totalLikeCount = 0;
+
+    @Builder.Default
+    @Column(name = "total_dislike_count", nullable = false)
+    private int totalDislikeCount = 0;
+
+    @Builder.Default
+    @Column(name = "total_love_count", nullable = false)
+    private int totalLoveCount = 0;
+
+    @Builder.Default
+    @Column(name = "total_wow_count", nullable = false)
+    private int totalWowCount = 0;
+
     @Builder.Default
     @Column(name = "average_rating", nullable = false, precision = 3, scale = 2)
     private BigDecimal averageRating = BigDecimal.ZERO;

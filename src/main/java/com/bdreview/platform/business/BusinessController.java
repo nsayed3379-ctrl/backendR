@@ -26,7 +26,7 @@ public class BusinessController {
 
     @PutMapping("/{id}")
     public ResponseEntity<BusinessResponse> update(@PathVariable UUID id,
-                                                     @Valid @RequestBody UpdateBusinessRequest request) {
+                                                   @Valid @RequestBody UpdateBusinessRequest request) {
         return ResponseEntity.ok(businessService.update(CurrentUser.id(), id, request));
     }
 
@@ -40,6 +40,13 @@ public class BusinessController {
     @PostMapping("/{id}/flag/request-review")
     public ResponseEntity<Void> requestFlagReview(@PathVariable UUID id) {
         businessService.requestFlagReview(CurrentUser.id(), id);
+        return ResponseEntity.accepted().build();
+    }
+
+    /** Business-card reaction (Like/Dislike/Love/Wow) — toggles on repeat calls with the same type. */
+    @PostMapping("/{id}/react")
+    public ResponseEntity<Void> react(@PathVariable UUID id, @Valid @RequestBody BusinessReactionRequest request) {
+        businessService.react(CurrentUser.id(), id, request.reactionType());
         return ResponseEntity.accepted().build();
     }
 

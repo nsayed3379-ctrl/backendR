@@ -49,17 +49,19 @@ public class BusinessService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final BusinessPhotoRepository businessPhotoRepository;
+    private final BusinessReactionRepository businessReactionRepository;
     private final BusinessService self;
 
     public BusinessService(BusinessRepository businessRepository,
-                            CategoryRepository categoryRepository,
-                            CityRepository cityRepository,
-                            AreaRepository areaRepository,
-                            BusinessAttributeRepository attributeRepository,
-                            UserRepository userRepository,
-                            NotificationService notificationService,
-                            BusinessPhotoRepository businessPhotoRepository,
-                            @Lazy BusinessService self) {
+                           CategoryRepository categoryRepository,
+                           CityRepository cityRepository,
+                           AreaRepository areaRepository,
+                           BusinessAttributeRepository attributeRepository,
+                           UserRepository userRepository,
+                           NotificationService notificationService,
+                           BusinessPhotoRepository businessPhotoRepository,
+                           BusinessReactionRepository businessReactionRepository,
+                           @Lazy BusinessService self) {
         this.businessRepository = businessRepository;
         this.categoryRepository = categoryRepository;
         this.cityRepository = cityRepository;
@@ -68,6 +70,7 @@ public class BusinessService {
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.businessPhotoRepository = businessPhotoRepository;
+        this.businessReactionRepository = businessReactionRepository;
         this.self = self;
     }
 
@@ -169,6 +172,39 @@ public class BusinessService {
         }
     }
 
+    /**
+     * Business-level card reaction (Like/Dislike/Love/Wow) — toggled the same
+     * way review.ReviewService#vote toggles a review vote: a second react()
+     * with the same type removes it instead of adding it again.
+     */
+    @Transactional
+    public void react(UUID userId, UUID businessId, BusinessReactionType reactionType) {
+        businessRepository.findById(businessId)
+                .filter(b -> !b.isDeleted())
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
+
+        if (businessReactionRepository.existsByBusinessIdAndUserIdAndReactionType(businessId, userId, reactionType)) {
+            businessReactionRepository.deleteByBusinessIdAndUserIdAndReactionType(businessId, userId, reactionType);
+            adjustReactionCount(businessId, reactionType, -1);
+        } else {
+            businessReactionRepository.save(BusinessReaction.builder()
+                    .businessId(businessId)
+                    .userId(userId)
+                    .reactionType(reactionType)
+                    .build());
+            adjustReactionCount(businessId, reactionType, 1);
+        }
+    }
+
+    private void adjustReactionCount(UUID businessId, BusinessReactionType type, int delta) {
+        switch (type) {
+            case LIKE -> businessRepository.adjustLikeCount(businessId, delta);
+            case DISLIKE -> businessRepository.adjustDislikeCount(businessId, delta);
+            case LOVE -> businessRepository.adjustLoveCount(businessId, delta);
+            case WOW -> businessRepository.adjustWowCount(businessId, delta);
+        }
+    }
+
     @Transactional(readOnly = true)
     public BusinessResponse getBySlug(String slug) {
         Business business = businessRepository.findBySlugAndDeletedAtIsNull(slug)
@@ -180,8 +216,8 @@ public class BusinessService {
 
     @Transactional(readOnly = true)
     public Page<BusinessResponse> search(UUID categoryId, UUID areaId, String priceTier, Double minRating,
-                                          Double lat, Double lng, Double radiusMeters, String sort,
-                                          int page, int size) {
+                                         Double lat, Double lng, Double radiusMeters, String sort,
+                                         int page, int size) {
         Pageable pageable = PageRequest.of(page, com.bdreview.platform.common.PageRequestDefaults.clamp(size));
         Page<Business> results = businessRepository.search(categoryId, areaId, priceTier, minRating, lat, lng, radiusMeters, sort, pageable);
         Map<UUID, List<String>> galleryByBusiness = galleryUrlsByBusiness(results.getContent());

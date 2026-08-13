@@ -27,7 +27,11 @@ public record BusinessResponse(
         int reviewCount,
         boolean flagged,
         String flagReason,
-        Instant flaggedAt
+        Instant flaggedAt,
+        int totalLikeCount,
+        int totalDislikeCount,
+        int totalLoveCount,
+        int totalWowCount
 ) {
     /** photoUrls: cover photo (if any) followed by gallery photos, in display order — card carousel source. */
     public static BusinessResponse from(Business b, List<String> photoUrls) {
@@ -40,7 +44,8 @@ public record BusinessResponse(
                 b.getPriceTier(),
                 b.getAttributes().stream().map(BusinessAttribute::getName).toList(),
                 b.isVerified(), b.getAverageRating(), b.getReviewCount(),
-                b.isFlagged(), b.getFlagReason(), b.getFlaggedAt()
+                b.isFlagged(), b.getFlagReason(), b.getFlaggedAt(),
+                b.getTotalLikeCount(), b.getTotalDislikeCount(), b.getTotalLoveCount(), b.getTotalWowCount()
         );
     }
 }

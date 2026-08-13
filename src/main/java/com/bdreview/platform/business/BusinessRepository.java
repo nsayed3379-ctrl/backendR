@@ -153,6 +153,30 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
     @Query("UPDATE Business b SET b.flagged = false, b.flagReason = NULL, b.flaggedAt = NULL WHERE b.id = :id")
     void unflag(@Param("id") UUID id);
 
+    // -----------------------------------------------------------------
+    // Business-level reactions (Like/Dislike/Love/Wow) — same atomic-increment
+    // convention as applyRatingAggregateDelta above; see BusinessService#react.
+    // -----------------------------------------------------------------
+    @Modifying
+    @Transactional
+    @Query("UPDATE Business b SET b.totalLikeCount = b.totalLikeCount + :delta WHERE b.id = :id")
+    void adjustLikeCount(@Param("id") UUID id, @Param("delta") int delta);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Business b SET b.totalDislikeCount = b.totalDislikeCount + :delta WHERE b.id = :id")
+    void adjustDislikeCount(@Param("id") UUID id, @Param("delta") int delta);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Business b SET b.totalLoveCount = b.totalLoveCount + :delta WHERE b.id = :id")
+    void adjustLoveCount(@Param("id") UUID id, @Param("delta") int delta);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Business b SET b.totalWowCount = b.totalWowCount + :delta WHERE b.id = :id")
+    void adjustWowCount(@Param("id") UUID id, @Param("delta") int delta);
+
     List<Business> findByOwnerUserIdAndDeletedAtIsNull(UUID ownerUserId);
 
     // -----------------------------------------------------------------
