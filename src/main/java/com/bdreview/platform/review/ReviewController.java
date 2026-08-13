@@ -60,8 +60,9 @@ public class ReviewController {
     @GetMapping("/business/{businessId}")
     public ResponseEntity<PageResponse<ReviewResponse>> listForBusiness(
             @PathVariable UUID businessId,
-            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        var results = reviewService.listForBusiness(businessId, page, size).map(this::toResponse);
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "newest") String sort) {
+        var results = reviewService.listForBusiness(businessId, page, size, sort).map(this::toResponse);
         return ResponseEntity.ok(PageResponse.of(results));
     }
 
@@ -71,6 +72,12 @@ public class ReviewController {
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         var results = reviewService.ownerDashboardList(businessId, page, size).map(this::toResponse);
         return ResponseEntity.ok(PageResponse.of(results));
+    }
+
+    /** Business detail page "Overall rating" bar chart — public, no auth required. */
+    @GetMapping("/business/{businessId}/rating-breakdown")
+    public ResponseEntity<RatingBreakdownResponse> ratingBreakdown(@PathVariable UUID businessId) {
+        return ResponseEntity.ok(reviewService.ratingBreakdown(businessId));
     }
 
     @GetMapping("/business/{businessId}/rating-trend")

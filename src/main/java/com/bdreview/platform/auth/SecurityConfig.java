@@ -50,6 +50,9 @@ public class SecurityConfig {
                                 "/api/v1/areas/**", "/api/v1/attributes/**").permitAll()
                         // home page "Recent Activity" feed — must render for logged-out visitors too
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/reviews/recent").permitAll()
+                        // business page "Overall rating" bar chart — aggregate counts, no review
+                        // content, safe to show even while the review list itself stays auth-gated
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/reviews/business/*/rating-breakdown").permitAll()
                         // pre-signed upload URLs (§13) are bare fetch() PUTs with no Authorization
                         // header — the URL itself (unguessable object key) is the auth boundary
                         .requestMatchers("/api/v1/storage/**").permitAll()

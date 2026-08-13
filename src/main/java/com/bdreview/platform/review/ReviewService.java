@@ -12,6 +12,7 @@ import com.bdreview.platform.summary.SummaryGenerationService;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -146,9 +147,15 @@ public class ReviewService {
     }
 
     /** §14: consumer-facing list excludes HIDDEN; NOT_RECOMMENDED still shows, de-emphasized, per Yelp-style UX. */
-    public Page<Review> listForBusiness(UUID businessId, int page, int size) {
+    public Page<Review> listForBusiness(UUID businessId, int page, int size, String sort) {
+        Sort sortOrder = switch (sort) {
+            case "highest" -> Sort.by(Sort.Direction.DESC, "rating").and(Sort.by(Sort.Direction.DESC, "createdAt"));
+            case "lowest" -> Sort.by(Sort.Direction.ASC, "rating").and(Sort.by(Sort.Direction.DESC, "createdAt"));
+            case "newest" -> Sort.by(Sort.Direction.DESC, "createdAt");
+            default -> throw new BadRequestException("sort must be 'newest', 'highest', or 'lowest'");
+        };
         return reviewRepository.findByBusinessIdAndDeletedAtIsNullAndVisibilityStatusNot(
-                businessId, VisibilityStatus.HIDDEN, PageRequest.of(page, PageRequestDefaults.clamp(size)));
+                businessId, VisibilityStatus.HIDDEN, PageRequest.of(page, PageRequestDefaults.clamp(size), sortOrder));
     }
 
     /** §7 owner dashboard: full list including NOT_RECOMMENDED, excluding only HIDDEN/soft-deleted handled by repo. */
@@ -165,6 +172,20 @@ public class ReviewService {
     public Page<Review> recentActivity(int page, int size) {
         return reviewRepository.findByDeletedAtIsNullAndVisibilityStatusNotOrderByCreatedAtDesc(
                 VisibilityStatus.HIDDEN, PageRequest.of(page, PageRequestDefaults.clamp(size)));
+    }
+
+    /** Business detail page "Overall rating" bar chart. */
+    public RatingBreakdownResponse ratingBreakdown(UUID businessId) {
+        int[] counts = new int[5]; // index 0 = 1-star ... index 4 = 5-star
+        for (Object[] row : reviewRepository.ratingBreakdown(businessId, VisibilityStatus.HIDDEN)) {
+            int rating = ((Number) row[0]).intValue();
+            int count = ((Number) row[1]).intValue();
+            if (rating >= 1 && rating <= 5) {
+                counts[rating - 1] = count;
+            }
+        }
+        int total = counts[0] + counts[1] + counts[2] + counts[3] + counts[4];
+        return new RatingBreakdownResponse(counts[4], counts[3], counts[2], counts[1], counts[0], total);
     }
 
     public List<Object[]> ratingTrend(UUID businessId, String bucket) {
