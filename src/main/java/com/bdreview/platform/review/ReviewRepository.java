@@ -28,6 +28,24 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
     Optional<Review> findByIdAndDeletedAtIsNull(UUID id);
 
+    /** Home page "Recent Activity" feed — newest public reviews across every business. */
+    Page<Review> findByDeletedAtIsNullAndVisibilityStatusNotOrderByCreatedAtDesc(
+            VisibilityStatus excluded, Pageable pageable);
+
+    /**
+     * Business detail page "Overall rating" bar chart — count of public
+     * reviews per star value (1-5), one grouped query. Row shape: [short
+     * rating, Long count]. Public (no auth) even though the review list
+     * itself requires login — aggregate counts carry no review content.
+     */
+    @Query("""
+            SELECT r.rating, COUNT(r)
+            FROM Review r
+            WHERE r.businessId = :businessId AND r.deletedAt IS NULL AND r.visibilityStatus <> :excluded
+            GROUP BY r.rating
+            """)
+    List<Object[]> ratingBreakdown(@Param("businessId") UUID businessId, @Param("excluded") VisibilityStatus excluded);
+
     /**
      * §7 Business Dashboard — weekly/monthly rating trend as a single grouped
      * query (no N+1: one round trip regardless of review volume).

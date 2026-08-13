@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -178,6 +179,18 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
     void adjustWowCount(@Param("id") UUID id, @Param("delta") int delta);
 
     List<Business> findByOwnerUserIdAndDeletedAtIsNull(UUID ownerUserId);
+
+    /**
+     * Batched lookup for cross-business listings (home page "Recent Activity" feed) —
+     * JOIN FETCH avoids LazyInitializationException once the session closes
+     * (open-in-view is false), same reasoning as findByIdWithDetails below.
+     */
+    @Query("""
+            SELECT b FROM Business b
+            JOIN FETCH b.category
+            WHERE b.id IN :ids AND b.deletedAt IS NULL
+            """)
+    List<Business> findAllByIdInWithCategory(@Param("ids") Collection<UUID> ids);
 
     // -----------------------------------------------------------------
     // Admin panel (com.bdreview.platform.admin) — listing/search across

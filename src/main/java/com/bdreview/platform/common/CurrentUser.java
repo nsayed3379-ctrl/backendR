@@ -1,5 +1,6 @@
 package com.bdreview.platform.common;
 
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -13,10 +14,14 @@ public final class CurrentUser {
 
     public static UUID id() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getName() == null) {
+        if (auth == null || auth.getName() == null || auth instanceof AnonymousAuthenticationToken) {
             throw new ForbiddenException("Not authenticated");
         }
-        return UUID.fromString(auth.getName());
+        try {
+            return UUID.fromString(auth.getName());
+        } catch (IllegalArgumentException e) {
+            throw new ForbiddenException("Not authenticated");
+        }
     }
 
     public static boolean hasRole(String role) {
