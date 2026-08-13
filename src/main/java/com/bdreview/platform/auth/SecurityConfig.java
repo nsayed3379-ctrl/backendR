@@ -45,6 +45,8 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                 "/api/v1/businesses/**", "/api/v1/categories/**", "/api/v1/cities/**",
                                 "/api/v1/areas/**", "/api/v1/attributes/**").permitAll()
+                        // home page "Recent Activity" feed — must render for logged-out visitors too
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/reviews/recent").permitAll()
                         // pre-signed upload URLs (§13) are bare fetch() PUTs with no Authorization
                         // header — the URL itself (unguessable object key) is the auth boundary
                         .requestMatchers("/api/v1/storage/**").permitAll()

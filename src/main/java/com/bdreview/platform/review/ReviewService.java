@@ -161,6 +161,12 @@ public class ReviewService {
         return reviewRepository.findByUserIdAndDeletedAtIsNull(userId, PageRequest.of(page, PageRequestDefaults.clamp(size)));
     }
 
+    /** Home page "Recent Activity" feed — newest public reviews across every business. */
+    public Page<Review> recentActivity(int page, int size) {
+        return reviewRepository.findByDeletedAtIsNullAndVisibilityStatusNotOrderByCreatedAtDesc(
+                VisibilityStatus.HIDDEN, PageRequest.of(page, PageRequestDefaults.clamp(size)));
+    }
+
     public List<Object[]> ratingTrend(UUID businessId, String bucket) {
         if (!bucket.equals("week") && !bucket.equals("month")) {
             throw new BadRequestException("bucket must be 'week' or 'month'");

@@ -28,6 +28,10 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
     Optional<Review> findByIdAndDeletedAtIsNull(UUID id);
 
+    /** Home page "Recent Activity" feed — newest public reviews across every business. */
+    Page<Review> findByDeletedAtIsNullAndVisibilityStatusNotOrderByCreatedAtDesc(
+            VisibilityStatus excluded, Pageable pageable);
+
     /**
      * §7 Business Dashboard — weekly/monthly rating trend as a single grouped
      * query (no N+1: one round trip regardless of review volume).

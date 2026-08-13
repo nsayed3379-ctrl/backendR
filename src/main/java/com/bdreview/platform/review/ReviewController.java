@@ -1,13 +1,19 @@
 package com.bdreview.platform.review;
 
 import com.bdreview.platform.auth.UserRepository;
+import com.bdreview.platform.business.Business;
+import com.bdreview.platform.business.BusinessRepository;
 import com.bdreview.platform.common.CurrentUser;
 import com.bdreview.platform.common.PageResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -16,10 +22,15 @@ public class ReviewController {
 
     private final ReviewService reviewService;
     private final UserRepository userRepository;
+    private final BusinessRepository businessRepository;
+    private final ReviewPhotoRepository reviewPhotoRepository;
 
-    public ReviewController(ReviewService reviewService, UserRepository userRepository) {
+    public ReviewController(ReviewService reviewService, UserRepository userRepository,
+                             BusinessRepository businessRepository, ReviewPhotoRepository reviewPhotoRepository) {
         this.reviewService = reviewService;
         this.userRepository = userRepository;
+        this.businessRepository = businessRepository;
+        this.reviewPhotoRepository = reviewPhotoRepository;
     }
 
     @PostMapping
@@ -73,6 +84,44 @@ public class ReviewController {
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         var results = reviewService.myReviews(CurrentUser.id(), page, size).map(this::toResponse);
         return ResponseEntity.ok(PageResponse.of(results));
+    }
+
+    /** Home page "Recent Activity" feed — public, no auth required. */
+    @GetMapping("/recent")
+    public ResponseEntity<PageResponse<RecentActivityResponse>> recent(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "9") int size) {
+        Page<Review> reviews = reviewService.recentActivity(page, size);
+        List<Review> content = reviews.getContent();
+
+        List<UUID> businessIds = content.stream().map(Review::getBusinessId).distinct().toList();
+        List<UUID> userIds = content.stream().map(Review::getUserId).distinct().toList();
+        List<UUID> reviewIds = content.stream().map(Review::getId).toList();
+
+        Map<UUID, Business> businesses = new HashMap<>();
+        businessRepository.findAllByIdInWithCategory(businessIds).forEach(b -> businesses.put(b.getId(), b));
+
+        Map<UUID, String> userNames = new HashMap<>();
+        userRepository.findAllById(userIds).forEach(u -> userNames.put(u.getId(), u.getName()));
+
+        Map<UUID, List<String>> photosByReview = new HashMap<>();
+        reviewPhotoRepository.findByReviewIdIn(reviewIds).forEach(p ->
+                photosByReview.computeIfAbsent(p.getReviewId(), k -> new ArrayList<>()).add(p.getUrl()));
+
+        Page<RecentActivityResponse> mapped = reviews.map(r -> {
+            Business b = businesses.get(r.getBusinessId());
+            return new RecentActivityResponse(
+                    r.getId(), r.getBusinessId(),
+                    b != null ? b.getName() : null,
+                    b != null ? b.getSlug() : null,
+                    b != null ? b.getCoverPhotoUrl() : null,
+                    b != null ? b.getCategory().getName() : null,
+                    r.getUserId(), userNames.get(r.getUserId()),
+                    r.getRating(), r.getContent(),
+                    photosByReview.getOrDefault(r.getId(), List.of()),
+                    r.getUsefulCount(), r.getFunnyCount(), r.getCoolCount(),
+                    r.getCreatedAt());
+        });
+        return ResponseEntity.ok(PageResponse.of(mapped));
     }
 
     private ReviewResponse toResponse(Review review) {
