@@ -1,7 +1,6 @@
 package com.bdreview.platform.business;
 
 import com.bdreview.platform.common.CurrentUser;
-import com.bdreview.platform.review.VoteRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -44,19 +43,11 @@ public class BusinessController {
         return ResponseEntity.accepted().build();
     }
 
-<<<<<<< HEAD
     /** Business-card reaction (Like/Dislike/Love/Wow) — toggles on repeat calls with the same type. */
     @PostMapping("/{id}/react")
     public ResponseEntity<Void> react(@PathVariable UUID id, @Valid @RequestBody BusinessReactionRequest request) {
         businessService.react(CurrentUser.id(), id, request.reactionType());
         return ResponseEntity.accepted().build();
-=======
-    /** Business-card reaction row — toggles a direct reaction to the business as a whole. */
-    @PostMapping("/{id}/react")
-    public ResponseEntity<Void> react(@PathVariable UUID id, @Valid @RequestBody VoteRequest request) {
-        businessService.react(CurrentUser.id(), id, request.voteType());
-        return ResponseEntity.noContent().build();
->>>>>>> c75f009dc3431256bd307fac47a70595495e4001
     }
 
     @GetMapping("/{slug}")

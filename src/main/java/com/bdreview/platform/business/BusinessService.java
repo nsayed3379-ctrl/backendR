@@ -12,7 +12,6 @@ import com.bdreview.platform.gallery.BusinessPhotoRepository;
 import com.bdreview.platform.notification.NotificationChannel;
 import com.bdreview.platform.notification.NotificationService;
 import com.bdreview.platform.notification.NotificationType;
-import com.bdreview.platform.review.VoteType;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
@@ -54,7 +53,6 @@ public class BusinessService {
     private final BusinessService self;
 
     public BusinessService(BusinessRepository businessRepository,
-<<<<<<< HEAD
                            CategoryRepository categoryRepository,
                            CityRepository cityRepository,
                            AreaRepository areaRepository,
@@ -64,17 +62,6 @@ public class BusinessService {
                            BusinessPhotoRepository businessPhotoRepository,
                            BusinessReactionRepository businessReactionRepository,
                            @Lazy BusinessService self) {
-=======
-                            CategoryRepository categoryRepository,
-                            CityRepository cityRepository,
-                            AreaRepository areaRepository,
-                            BusinessAttributeRepository attributeRepository,
-                            UserRepository userRepository,
-                            NotificationService notificationService,
-                            BusinessPhotoRepository businessPhotoRepository,
-                            BusinessReactionRepository businessReactionRepository,
-                            @Lazy BusinessService self) {
->>>>>>> c75f009dc3431256bd307fac47a70595495e4001
         this.businessRepository = businessRepository;
         this.categoryRepository = categoryRepository;
         this.cityRepository = cityRepository;
@@ -86,8 +73,6 @@ public class BusinessService {
         this.businessReactionRepository = businessReactionRepository;
         this.self = self;
     }
-
-    private static final int[] ZERO_REACTIONS = new int[]{0, 0, 0};
 
     @Transactional
     public BusinessResponse create(UUID ownerUserId, CreateBusinessRequest request) {
@@ -119,7 +104,7 @@ public class BusinessService {
                 .build();
 
         Business saved = businessRepository.save(business);
-        return BusinessResponse.from(saved, photoUrlsFor(saved, List.of()), ZERO_REACTIONS);
+        return BusinessResponse.from(saved, photoUrlsFor(saved, List.of()));
     }
 
     @Transactional
@@ -152,7 +137,7 @@ public class BusinessService {
         Business saved = businessRepository.save(business);
         List<String> galleryUrls = businessPhotoRepository.findByBusinessIdOrderBySortOrderAsc(saved.getId())
                 .stream().map(BusinessPhoto::getUrl).toList();
-        return BusinessResponse.from(saved, photoUrlsFor(saved, galleryUrls), reactionTotalsFor(saved.getId()));
+        return BusinessResponse.from(saved, photoUrlsFor(saved, galleryUrls));
     }
 
     @Transactional
@@ -226,7 +211,7 @@ public class BusinessService {
                 .orElseThrow(() -> new ResourceNotFoundException("Business not found: " + slug));
         List<String> galleryUrls = businessPhotoRepository.findByBusinessIdOrderBySortOrderAsc(business.getId())
                 .stream().map(BusinessPhoto::getUrl).toList();
-        return BusinessResponse.from(business, photoUrlsFor(business, galleryUrls), reactionTotalsFor(business.getId()));
+        return BusinessResponse.from(business, photoUrlsFor(business, galleryUrls));
     }
 
     @Transactional(readOnly = true)
@@ -236,21 +221,17 @@ public class BusinessService {
         Pageable pageable = PageRequest.of(page, com.bdreview.platform.common.PageRequestDefaults.clamp(size));
         Page<Business> results = businessRepository.search(categoryId, areaId, priceTier, minRating, lat, lng, radiusMeters, sort, pageable);
         Map<UUID, List<String>> galleryByBusiness = galleryUrlsByBusiness(results.getContent());
-        Map<UUID, int[]> reactionsByBusiness = reactionTotalsByBusiness(results.getContent());
         return results.map(b -> BusinessResponse.from(b,
-                photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of())),
-                reactionsByBusiness.getOrDefault(b.getId(), ZERO_REACTIONS)));
+                photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of()))));
     }
 
     @Transactional(readOnly = true)
     public List<BusinessResponse> myBusinesses(UUID ownerUserId) {
         List<Business> businesses = businessRepository.findByOwnerUserIdAndDeletedAtIsNull(ownerUserId);
         Map<UUID, List<String>> galleryByBusiness = galleryUrlsByBusiness(businesses);
-        Map<UUID, int[]> reactionsByBusiness = reactionTotalsByBusiness(businesses);
         return businesses.stream()
                 .map(b -> BusinessResponse.from(b,
-                        photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of())),
-                        reactionsByBusiness.getOrDefault(b.getId(), ZERO_REACTIONS)))
+                        photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of()))))
                 .toList();
     }
 
@@ -265,50 +246,6 @@ public class BusinessService {
             byBusiness.computeIfAbsent(photo.getBusinessId(), k -> new ArrayList<>()).add(photo.getUrl());
         }
         return byBusiness;
-    }
-
-    /** Batched useful/funny/cool counts grouped by business id — one query instead of one per business. */
-    private Map<UUID, int[]> reactionTotalsByBusiness(List<Business> businesses) {
-        List<UUID> ids = businesses.stream().map(Business::getId).toList();
-        if (ids.isEmpty()) {
-            return Map.of();
-        }
-        Map<UUID, int[]> byBusiness = new HashMap<>();
-        for (Object[] row : businessReactionRepository.countGroupedByBusinessIds(ids)) {
-            UUID businessId = (UUID) row[0];
-            VoteType type = (VoteType) row[1];
-            int count = ((Number) row[2]).intValue();
-            int[] totals = byBusiness.computeIfAbsent(businessId, k -> new int[]{0, 0, 0});
-            totals[indexOf(type)] = count;
-        }
-        return byBusiness;
-    }
-
-    private int[] reactionTotalsFor(UUID businessId) {
-        return reactionTotalsByBusiness(List.of(Business.builder().id(businessId).build()))
-                .getOrDefault(businessId, ZERO_REACTIONS);
-    }
-
-    private static int indexOf(VoteType type) {
-        return switch (type) {
-            case USEFUL -> 0;
-            case FUNNY -> 1;
-            case COOL -> 2;
-        };
-    }
-
-    /**
-     * Toggles a business-level reaction (add if absent, remove if present) — mirrors
-     * review.ReviewService.vote()'s toggle behavior, one row per (business, user, type).
-     */
-    @Transactional
-    public void react(UUID userId, UUID businessId, VoteType type) {
-        if (businessReactionRepository.existsByBusinessIdAndUserIdAndReactionType(businessId, userId, type)) {
-            businessReactionRepository.deleteByBusinessIdAndUserIdAndReactionType(businessId, userId, type);
-        } else {
-            businessReactionRepository.save(BusinessReaction.builder()
-                    .businessId(businessId).userId(userId).reactionType(type).build());
-        }
     }
 
     /** Card carousel source: cover photo first (if set), then gallery photos, de-duplicated. */
