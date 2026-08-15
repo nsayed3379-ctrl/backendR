@@ -59,6 +59,13 @@ public class BusinessController {
         return ResponseEntity.ok(businessService.myBusinesses(CurrentUser.id()));
     }
 
+    /** §2: pre-check before "add a business" — same category + area, fuzzy name match (pg_trgm similarity > 0.85). */
+    @GetMapping("/potential-duplicates")
+    public ResponseEntity<List<BusinessResponse>> potentialDuplicates(
+            @RequestParam UUID categoryId, @RequestParam UUID areaId, @RequestParam String name) {
+        return ResponseEntity.ok(businessService.findPotentialDuplicates(categoryId, areaId, name));
+    }
+
     /** §3 Search + Filter (GPS-enabled). All filters are optional/combinable. */
     @GetMapping("/search")
     public ResponseEntity<com.bdreview.platform.common.PageResponse<BusinessResponse>> search(

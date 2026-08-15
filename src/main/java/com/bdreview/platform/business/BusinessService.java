@@ -235,6 +235,17 @@ public class BusinessService {
                 .toList();
     }
 
+    /** §2: surfaced before the "add a business" form is filled in, so a near-match can be claimed instead of duplicated. */
+    @Transactional(readOnly = true)
+    public List<BusinessResponse> findPotentialDuplicates(UUID categoryId, UUID areaId, String name) {
+        List<Business> matches = businessRepository.findPotentialDuplicates(categoryId, areaId, name);
+        Map<UUID, List<String>> galleryByBusiness = galleryUrlsByBusiness(matches);
+        return matches.stream()
+                .map(b -> BusinessResponse.from(b,
+                        photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of()))))
+                .toList();
+    }
+
     /** Batched gallery lookup grouped by business id — one query instead of one per business. */
     private Map<UUID, List<String>> galleryUrlsByBusiness(List<Business> businesses) {
         List<UUID> ids = businesses.stream().map(Business::getId).toList();

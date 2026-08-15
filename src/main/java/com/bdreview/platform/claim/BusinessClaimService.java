@@ -162,11 +162,6 @@ public class BusinessClaimService {
     // Shared
     // ---------------------------------------------------------------
 
-    /** §2 duplicate check exposed for the create-listing flow — prompts "claim existing or proceed new". */
-    public List<Business> findPotentialDuplicates(UUID categoryId, UUID areaId, String name) {
-        return businessRepository.findPotentialDuplicates(categoryId, areaId, name);
-    }
-
     public List<BusinessClaim> myClaims(UUID claimantUserId) {
         return claimRepository.findByClaimantUserId(claimantUserId);
     }
