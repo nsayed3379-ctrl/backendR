@@ -14,7 +14,6 @@ one package per spec section, self-contained (own entities, own enums, own repo)
 | `auth`         | §5 Role-based auth                        | User, RefreshToken (rotation + reuse-detection) + repos |
 | `otp`          | §6 Phone/OTP verification                 | OtpVerification + repo (rate-limit counting queries) |
 | `review`       | §4 Reviews/votes, §7 dashboard queries    | Review, ReviewPhoto, ReviewVote + repos (72h edit window, atomic vote/aggregate updates, N+1-safe rating trend) |
-| `verification` | §8 NID verification                       | NidVerification + repo (admin queue, resolve, purge scheduling) |
 | `bookmark`     | §9 Favorites/Collections                  | Collection, Bookmark + repos |
 | `report`       | §11 Report button (production-grade workflow) | Report + repo — reference code, auto-triaged priority, 48h SLA (`isOverdue`), reporter-credibility query, multi-outcome resolve (ACTION_TAKEN/DISMISSED/DUPLICATE) that reuses `moderation`'s hide logic for review targets |
 | `moderation`   | §12 Admin moderation dashboard             | AuditLog + repo |
@@ -54,7 +53,6 @@ where noted). Base path is `/api/v1` unless shown otherwise.
 | `business`     | `/businesses`, `/cities`, `/areas`, `/categories`, `/attributes` | search/browse public, write needs BUSINESS_OWNER |
 | `claim`        | `/claims`                                | consumer/owner file; `/claims/queue`+resolve need ADMIN |
 | `review`       | `/reviews`                               | submit/edit/delete/vote need auth (OTP-verified account) |
-| `verification` | `/nid-verifications`                     | submit needs owner; queue/resolve need ADMIN |
 | `bookmark`     | `/bookmarks`, `/collections`             | auth required |
 | `report`       | `/reports`                               | create needs auth; `/reports/{id}/resolve` takes `{outcome, resolutionNote}` (ACTION_TAKEN/DISMISSED/DUPLICATE), queue/resolve need ADMIN |
 | `moderation`   | `/admin/moderation/*`                    | ADMIN only |
@@ -130,9 +128,9 @@ repositories/services (and adds a small number of read-side query methods to
   (reference code, auto-triaged priority badge, reporter-credibility
   accuracy label, overdue/SLA highlight, and three explicit resolve outcomes
   — Action Taken / Dismissed / Duplicate — instead of a single "Resolve"),
-  business-claim queue, NID-verification queue, and the full audit log.
+  business-claim queue, and the full audit log.
 - Moderation actions (`ReportService.resolve`, `BusinessClaimService.resolve`,
-  `NidVerificationService.resolve`, `ModerationService.resolveFlaggedReview`)
+  `ModerationService.resolveFlaggedReview`)
   are called directly from the admin controllers, since `common.CurrentUser`
   reads the admin's id/role straight out of the Spring Security session the
   same way it reads it out of a JWT — building the admin panel never needed
@@ -144,7 +142,7 @@ repositories/services (and adds a small number of read-side query methods to
 
 `V1__init.sql`'s `app_user.role` check constraint only allowed `'CONSUMER'` and
 `'BUSINESS_OWNER'` — `UserRole.ADMIN` was never added to it, even though the
-Java enum and every moderation/claim/NID service already depend on that role
+Java enum and every moderation/claim service already depend on that role
 existing. `V4__allow_admin_role.sql` widens the constraint to include
 `'ADMIN'` (V1 is already-applied and Flyway-checksummed, so it's fixed
 forward with a new migration rather than edited in place). Run once and the

@@ -7,8 +7,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Spec §12. Full audit trail for every admin resolution (reports, NID queue,
- * fake-review flags): who resolved it, when, what action was taken.
+ * Spec §12. Full audit trail for every admin resolution (reports,
+ * fake-review flags, business claims): who resolved it, when, what action
+ * was taken.
  */
 @Entity
 @Table(name = "audit_log")
@@ -21,7 +22,7 @@ public class AuditLog {
     private UUID id;
 
     @Column(name = "entity_type", nullable = false, length = 50)
-    private String entityType; // REPORT / NID_VERIFICATION / REVIEW / BUSINESS_CLAIM ...
+    private String entityType; // REPORT / REVIEW / BUSINESS_CLAIM ...
 
     @Column(name = "entity_id", nullable = false)
     private UUID entityId;

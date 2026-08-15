@@ -7,8 +7,6 @@ import com.bdreview.platform.report.ReportStatus;
 import com.bdreview.platform.review.Review;
 import com.bdreview.platform.review.ReviewRepository;
 import com.bdreview.platform.review.VisibilityStatus;
-import com.bdreview.platform.verification.NidVerificationRepository;
-import com.bdreview.platform.verification.NidVerificationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -17,30 +15,26 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 /**
- * Spec §12: read-side aggregation over the three moderation-relevant queues
- * (reports, NID verification, medium-confidence fake-review flags), plus the
- * admin override action for a flagged review. Each queue's own resolve
- * action (claims, NID, reports) stays in its own package/service — this
- * class only composes the "what needs an admin's attention" view and the
- * one action (review visibility override) that doesn't already belong
- * anywhere else.
+ * Spec §12: read-side aggregation over the moderation-relevant queues
+ * (reports, medium-confidence fake-review flags), plus the admin override
+ * action for a flagged review. Each queue's own resolve action (claims,
+ * reports) stays in its own package/service — this class only composes the
+ * "what needs an admin's attention" view and the one action (review
+ * visibility override) that doesn't already belong anywhere else.
  */
 @Service
 public class ModerationService {
 
     private final ReportRepository reportRepository;
-    private final NidVerificationRepository nidVerificationRepository;
     private final ReviewRepository reviewRepository;
     private final BusinessRepository businessRepository;
     private final AuditLogService auditLogService;
 
     public ModerationService(ReportRepository reportRepository,
-                              NidVerificationRepository nidVerificationRepository,
                               ReviewRepository reviewRepository,
                               BusinessRepository businessRepository,
                               AuditLogService auditLogService) {
         this.reportRepository = reportRepository;
-        this.nidVerificationRepository = nidVerificationRepository;
         this.reviewRepository = reviewRepository;
         this.businessRepository = businessRepository;
         this.auditLogService = auditLogService;
@@ -48,10 +42,9 @@ public class ModerationService {
 
     public ModerationQueueCounts counts() {
         long reports = reportRepository.findByStatus(ReportStatus.PENDING, Pageable.unpaged()).getTotalElements();
-        long nid = nidVerificationRepository.findByStatus(NidVerificationStatus.PENDING, Pageable.unpaged()).getTotalElements();
         long flagged = reviewRepository.findByVisibilityStatusAndDeletedAtIsNull(
                 VisibilityStatus.NOT_RECOMMENDED, Pageable.unpaged()).getTotalElements();
-        return new ModerationQueueCounts(reports, nid, flagged);
+        return new ModerationQueueCounts(reports, flagged);
     }
 
     public Page<Review> flaggedReviews(Pageable pageable) {

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-/** Spec §12 basic admin dashboard: combined view over reports/NID queue/flagged-reviews + audit trail. */
+/** Spec §12 basic admin dashboard: combined view over reports/flagged-reviews + audit trail. */
 @RestController
 @RequestMapping("/api/v1/admin/moderation")
 public class ModerationController {

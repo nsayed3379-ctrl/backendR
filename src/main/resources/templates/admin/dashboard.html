@@ -56,13 +56,6 @@
                 <div class="admin-stat-label">Pending reports</div>
             </div>
         </a>
-        <a th:href="@{/admin/nid-verifications}" class="admin-stat-card text-decoration-none text-reset">
-            <div class="admin-stat-icon warn"><i class="bi bi-person-vcard"></i></div>
-            <div>
-                <div class="admin-stat-value" th:text="${queueCounts.pendingNidVerifications()}">0</div>
-                <div class="admin-stat-label">Pending NID verifications</div>
-            </div>
-        </a>
         <a th:href="@{/admin/reviews(status='NOT_RECOMMENDED')}" class="admin-stat-card text-decoration-none text-reset">
             <div class="admin-stat-icon danger"><i class="bi bi-exclamation-diamond"></i></div>
             <div>

@@ -27,6 +27,10 @@ public class BusinessClaim {
     @Column(name = "verification_method", nullable = false, length = 20)
     private VerificationMethod verificationMethod;
 
+    /** DOCUMENT method only — object storage key for the uploaded proof (e.g. utility bill). */
+    @Column(name = "document_ref", columnDefinition = "text")
+    private String documentRef;
+
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

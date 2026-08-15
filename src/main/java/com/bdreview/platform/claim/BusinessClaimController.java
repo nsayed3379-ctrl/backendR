@@ -4,8 +4,10 @@ import com.bdreview.platform.auth.User;
 import com.bdreview.platform.auth.UserRepository;
 import com.bdreview.platform.common.CurrentUser;
 import com.bdreview.platform.common.PageResponse;
+import com.bdreview.platform.gallery.PreSignedUploadResponse;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,9 +26,45 @@ public class BusinessClaimController {
         this.userRepository = userRepository;
     }
 
+    @PostMapping("/phone/request")
+    public ResponseEntity<Void> requestPhone(@Valid @RequestBody BusinessIdRequest request) {
+        claimService.requestPhoneVerification(request.businessId());
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/phone/verify")
+    public ResponseEntity<BusinessClaim> verifyPhone(@Valid @RequestBody VerifyPhoneClaimRequest request) {
+        return ResponseEntity.ok(claimService.verifyPhoneAndClaim(CurrentUser.id(), request.businessId(), request.code()));
+    }
+
+    @PostMapping("/email/request")
+    public ResponseEntity<Void> requestEmail(@Valid @RequestBody RequestEmailClaimRequest request) {
+        claimService.requestEmailVerification(request.email());
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/email/verify")
+    public ResponseEntity<BusinessClaim> verifyEmail(@Valid @RequestBody VerifyEmailClaimRequest request) {
+        return ResponseEntity.ok(
+                claimService.verifyEmailAndClaim(CurrentUser.id(), request.businessId(), request.email(), request.code()));
+    }
+
+    @PostMapping("/document/upload-url")
+    public ResponseEntity<PreSignedUploadResponse> documentUploadUrl(@RequestParam String filename) {
+        return ResponseEntity.ok(claimService.requestDocumentUploadUrl(CurrentUser.id(), filename));
+    }
+
     @PostMapping
     public ResponseEntity<BusinessClaim> fileClaim(@Valid @RequestBody FileClaimRequest request) {
         return ResponseEntity.ok(claimService.fileClaim(CurrentUser.id(), request));
+    }
+
+    @GetMapping("/{id}/document")
+    public ResponseEntity<byte[]> document(@PathVariable UUID id) {
+        ClaimDocument document = claimService.getDocument(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(document.contentType()))
+                .body(document.bytes());
     }
 
     @GetMapping("/mine")

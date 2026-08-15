@@ -5,8 +5,11 @@ import com.bdreview.platform.auth.UserRepository;
 import com.bdreview.platform.business.BusinessRepository;
 import com.bdreview.platform.claim.BusinessClaim;
 import com.bdreview.platform.claim.BusinessClaimService;
+import com.bdreview.platform.claim.ClaimDocument;
 import com.bdreview.platform.claim.ResolveClaimRequest;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -48,6 +51,15 @@ public class AdminClaimController {
         model.addAttribute("claimantPhones", claimantPhones);
         model.addAttribute("active", "claims");
         return "admin/claims/list";
+    }
+
+    @GetMapping("/{id}/document")
+    @ResponseBody
+    public ResponseEntity<byte[]> document(@PathVariable UUID id) {
+        ClaimDocument document = businessClaimService.getDocument(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(document.contentType()))
+                .body(document.bytes());
     }
 
     @PostMapping("/{id}/approve")

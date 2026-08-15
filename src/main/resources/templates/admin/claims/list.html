@@ -12,7 +12,7 @@
     <div class="admin-page-header">
         <div>
             <h1>Business claims</h1>
-            <p>Owners claiming an admin-seeded or already-listed business (spec §2).</p>
+            <p>Document-based ownership claims awaiting review — PHONE and EMAIL claims verify instantly and never reach this queue (spec §2).</p>
         </div>
     </div>
 
@@ -25,6 +25,7 @@
                 <th>Business</th>
                 <th>Claimant</th>
                 <th>Method</th>
+                <th>Document</th>
                 <th>Filed</th>
                 <th></th>
             </tr>
@@ -36,6 +37,14 @@
                 </td>
                 <td class="text-mono" th:text="${claimantPhones[c.id] ?: c.claimantUserId}">-</td>
                 <td><span class="badge bg-secondary" th:text="${c.verificationMethod}">-</span></td>
+                <td>
+                    <a th:if="${c.verificationMethod.name() == 'DOCUMENT'}"
+                       th:href="@{/admin/claims/{id}/document(id=${c.id})}" target="_blank" rel="noopener">
+                        <img th:src="@{/admin/claims/{id}/document(id=${c.id})}" alt="Claim document"
+                             style="width:56px;height:56px;object-fit:cover;border-radius:4px;border:1px solid #ddd;"/>
+                    </a>
+                    <span th:unless="${c.verificationMethod.name() == 'DOCUMENT'}">-</span>
+                </td>
                 <td class="text-mono" th:text="${c.createdAt}">-</td>
                 <td class="text-end">
                     <div class="d-flex gap-2 justify-content-end flex-wrap">
@@ -51,7 +60,7 @@
                 </td>
             </tr>
             <tr th:if="${results.content.isEmpty()}">
-                <td colspan="5" class="admin-table-empty">No pending claims.</td>
+                <td colspan="6" class="admin-table-empty">No pending claims.</td>
             </tr>
             </tbody>
         </table>

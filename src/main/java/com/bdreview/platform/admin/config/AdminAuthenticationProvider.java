@@ -26,7 +26,7 @@ import java.util.List;
  * <p>On success the returned {@link Authentication}'s principal name is the
  * user's UUID (not their phone number), so that downstream code reusing the
  * existing {@code common.CurrentUser} helper — which every moderation
- * service (reports, claims, NID, flagged reviews) already depends on — keeps
+ * service (reports, claims, flagged reviews) already depends on — keeps
  * working unmodified for admin-panel requests.
  */
 @Component

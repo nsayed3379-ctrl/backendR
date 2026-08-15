@@ -10,4 +10,7 @@ public interface ObjectStorageClient {
     String buildObjectKey(String folder, String ownerId, String filename);
     String presignPutUrl(String objectKey);
     String cdnUrlFor(String objectKey);
+
+    /** Reads back the raw bytes for an object key — used by admin-only proxy views that must never hand the caller a direct storage URL. */
+    byte[] getObject(String objectKey);
 }
