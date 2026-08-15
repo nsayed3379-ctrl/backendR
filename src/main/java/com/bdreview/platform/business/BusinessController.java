@@ -20,7 +20,6 @@ public class BusinessController {
 
     @PostMapping
     public ResponseEntity<BusinessResponse> create(@Valid @RequestBody CreateBusinessRequest request) {
-        CurrentUser.requireRole("BUSINESS_OWNER");
         return ResponseEntity.ok(businessService.create(CurrentUser.id(), request));
     }
 
