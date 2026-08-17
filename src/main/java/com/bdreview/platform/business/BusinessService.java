@@ -216,10 +216,12 @@ public class BusinessService {
 
     @Transactional(readOnly = true)
     public Page<BusinessResponse> search(UUID categoryId, UUID areaId, String priceTier, Double minRating,
-                                         Double lat, Double lng, Double radiusMeters, String sort,
+                                         Double lat, Double lng, Double radiusMeters,
+                                         String q, String location, String sort,
                                          int page, int size) {
         Pageable pageable = PageRequest.of(page, com.bdreview.platform.common.PageRequestDefaults.clamp(size));
-        Page<Business> results = businessRepository.search(categoryId, areaId, priceTier, minRating, lat, lng, radiusMeters, sort, pageable);
+        Page<Business> results = businessRepository.search(categoryId, areaId, priceTier, minRating, lat, lng,
+                radiusMeters, q, location, sort, pageable);
         Map<UUID, List<String>> galleryByBusiness = galleryUrlsByBusiness(results.getContent());
         return results.map(b -> BusinessResponse.from(b,
                 photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of()))));
@@ -235,10 +237,13 @@ public class BusinessService {
                 .toList();
     }
 
-    /** §2: surfaced before the "add a business" form is filled in, so a near-match can be claimed instead of duplicated. */
+    /** §2: free-text "is my business already listed" search, so a near-match can be claimed instead of duplicated. */
     @Transactional(readOnly = true)
-    public List<BusinessResponse> findPotentialDuplicates(UUID categoryId, UUID areaId, String name) {
-        List<Business> matches = businessRepository.findPotentialDuplicates(categoryId, areaId, name);
+    public List<BusinessResponse> searchForClaim(String query) {
+        if (query == null || query.trim().length() < 2) {
+            return List.of();
+        }
+        List<Business> matches = businessRepository.searchForClaim(query.trim());
         Map<UUID, List<String>> galleryByBusiness = galleryUrlsByBusiness(matches);
         return matches.stream()
                 .map(b -> BusinessResponse.from(b,

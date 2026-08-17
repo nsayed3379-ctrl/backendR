@@ -59,14 +59,13 @@ public class BusinessController {
         return ResponseEntity.ok(businessService.myBusinesses(CurrentUser.id()));
     }
 
-    /** §2: pre-check before "add a business" — same category + area, fuzzy name match (pg_trgm similarity > 0.85). */
+    /** §2: free-text pre-check before "add a business" — e.g. "Biriyani House Mirpur" or just "KFC". */
     @GetMapping("/potential-duplicates")
-    public ResponseEntity<List<BusinessResponse>> potentialDuplicates(
-            @RequestParam UUID categoryId, @RequestParam UUID areaId, @RequestParam String name) {
-        return ResponseEntity.ok(businessService.findPotentialDuplicates(categoryId, areaId, name));
+    public ResponseEntity<List<BusinessResponse>> potentialDuplicates(@RequestParam String q) {
+        return ResponseEntity.ok(businessService.searchForClaim(q));
     }
 
-    /** §3 Search + Filter (GPS-enabled). All filters are optional/combinable. */
+    /** §3 Search + Filter (GPS-enabled). All filters are optional/combinable. `q`/`location` are the free-text search-bar fields. */
     @GetMapping("/search")
     public ResponseEntity<com.bdreview.platform.common.PageResponse<BusinessResponse>> search(
             @RequestParam(required = false) UUID categoryId,
@@ -76,11 +75,14 @@ public class BusinessController {
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,
             @RequestParam(required = false) Double radiusMeters,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String location,
             @RequestParam(defaultValue = "newest") String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        var results = businessService.search(categoryId, areaId, priceTier, minRating, lat, lng, radiusMeters, sort, page, size);
+        var results = businessService.search(categoryId, areaId, priceTier, minRating, lat, lng, radiusMeters,
+                q, location, sort, page, size);
         return ResponseEntity.ok(com.bdreview.platform.common.PageResponse.of(results));
     }
 }

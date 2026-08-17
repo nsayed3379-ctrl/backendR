@@ -21,21 +21,30 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
     boolean existsBySlugAndDeletedAtIsNull(String slug);
 
     // -----------------------------------------------------------------
-    // §2 Business Claim Flow — duplicate check.
-    // pg_trgm similarity() is trigram-overlap, NOT edit-distance; combined
-    // here with fuzzystrmatch's levenshtein() as a secondary signal, per spec.
+    // §2 Business Claim Flow — free-text "is my business already listed"
+    // search, surfaced before the "add a business" form is filled in.
+    // word_similarity() (pg_trgm) scores a name against the best-matching
+    // word-boundary substring of the query, so extra words the owner types
+    // (city/area) don't dilute the name match the way plain similarity()
+    // would; a mention of the business's own area/city/category anywhere
+    // in the query adds a modest ranking boost on top of the name score.
     // -----------------------------------------------------------------
     @Query(value = """
             SELECT b.* FROM business b
+            JOIN area a ON a.id = b.area_id
+            JOIN city c ON c.id = b.city_id
+            JOIN category cat ON cat.id = b.category_id
             WHERE b.deleted_at IS NULL
-              AND b.category_id = :categoryId
-              AND b.area_id = :areaId
-              AND similarity(b.name, :name) > 0.85
-            ORDER BY similarity(b.name, :name) DESC
+              AND word_similarity(b.name, :query) > 0.3
+            ORDER BY
+              (word_similarity(b.name, :query)
+               + CASE WHEN :query ILIKE '%' || a.name || '%' THEN 0.15 ELSE 0 END
+               + CASE WHEN :query ILIKE '%' || c.name || '%' THEN 0.08 ELSE 0 END
+               + CASE WHEN :query ILIKE '%' || cat.name || '%' THEN 0.05 ELSE 0 END
+              ) DESC
+            LIMIT 10
             """, nativeQuery = true)
-    List<Business> findPotentialDuplicates(@Param("categoryId") UUID categoryId,
-                                           @Param("areaId") UUID areaId,
-                                           @Param("name") String name);
+    List<Business> searchForClaim(@Param("query") String query);
 
     @Query(value = """
             SELECT levenshtein(b.name, :name) FROM business b WHERE b.id = :businessId
@@ -46,12 +55,28 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
     // §3 Search + Filter — combinable filters, GPS "near me" via PostGIS
     // ST_DWithin/ST_Distance against the GiST-indexed geography column.
     // Null parameters are treated as "no filter" (see COALESCE guards).
-    // Sort options: rating | distance | newest | most_reviewed.
+    // Sort options: relevance | rating | distance | newest | most_reviewed.
+    //
+    // `q`/`location` are the free-text search-bar fields (spec: one search
+    // box + one location box, no forced category/city/area dropdowns).
+    // Matching reuses the same word_similarity() technique as
+    // searchForClaim above (best-matching word-boundary substring, so
+    // "Biriyani House Mirpur" still matches a business named "Biriyani
+    // House" without the trailing location words diluting the score);
+    // `location` additionally matches either direction (typed text inside
+    // the area/city name, or vice versa) so "Mirpur" matches "Mirpur" and
+    // "Dhaka" loosely matches longer city names alike. Filtering and
+    // ranking both stay no-ops when q/location are blank, so plain
+    // category/area/price/rating browsing (CategoriesGrid, ExploreCities,
+    // the secondary filter row) is unaffected.
     // -----------------------------------------------------------------
     @Query(value = """
             SELECT b.*,
                    ST_Distance(b.location, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography) AS distance_m
             FROM business b
+            JOIN area a ON a.id = b.area_id
+            JOIN city c ON c.id = b.city_id
+            JOIN category cat ON cat.id = b.category_id
             WHERE b.deleted_at IS NULL
               AND (:categoryId IS NULL OR b.category_id = :categoryId)
               AND (:areaId IS NULL OR b.area_id = :areaId)
@@ -59,7 +84,29 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
               AND (:minRating IS NULL OR b.average_rating >= :minRating)
               AND (:lat IS NULL OR :lng IS NULL OR :radiusMeters IS NULL
                    OR ST_DWithin(b.location, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radiusMeters))
+              AND (:q IS NULL OR :q = ''
+                   OR word_similarity(b.name, :q) > 0.25
+                   OR word_similarity(cat.name, :q) > 0.4
+                   OR :q ILIKE '%' || cat.name || '%'
+                   OR :q ILIKE '%' || a.name || '%'
+                   OR :q ILIKE '%' || c.name || '%')
+              AND (:location IS NULL OR :location = ''
+                   OR :location ILIKE '%' || a.name || '%' OR a.name ILIKE '%' || :location || '%'
+                   OR :location ILIKE '%' || c.name || '%' OR c.name ILIKE '%' || :location || '%')
             ORDER BY
+              CASE WHEN :sort = 'relevance' THEN
+                (GREATEST(word_similarity(b.name, :q), similarity(b.name, :q)) * 2.0
+                 + GREATEST(word_similarity(cat.name, :q), similarity(cat.name, :q)) * 1.0
+                 + CASE WHEN :q <> '' AND :q ILIKE '%' || a.name || '%' THEN 0.4 ELSE 0 END
+                 + CASE WHEN :q <> '' AND :q ILIKE '%' || c.name || '%' THEN 0.2 ELSE 0 END
+                 + CASE WHEN :location <> ''
+                        AND (:location ILIKE '%' || a.name || '%' OR a.name ILIKE '%' || :location || '%')
+                        THEN 0.5 ELSE 0 END
+                 + CASE WHEN :location <> ''
+                        AND (:location ILIKE '%' || c.name || '%' OR c.name ILIKE '%' || :location || '%')
+                        THEN 0.3 ELSE 0 END
+                 + (b.average_rating / 20.0)
+                ) END DESC NULLS LAST,
               CASE WHEN :sort = 'rating'        THEN b.average_rating END DESC NULLS LAST,
               CASE WHEN :sort = 'most_reviewed'  THEN b.review_count END DESC NULLS LAST,
               CASE WHEN :sort = 'newest'         THEN b.created_at END DESC NULLS LAST,
@@ -67,7 +114,11 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
                    THEN ST_Distance(b.location, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography) END ASC NULLS LAST
             """,
             countQuery = """
-            SELECT count(*) FROM business b
+            SELECT count(*)
+            FROM business b
+            JOIN area a ON a.id = b.area_id
+            JOIN city c ON c.id = b.city_id
+            JOIN category cat ON cat.id = b.category_id
             WHERE b.deleted_at IS NULL
               AND (:categoryId IS NULL OR b.category_id = :categoryId)
               AND (:areaId IS NULL OR b.area_id = :areaId)
@@ -75,6 +126,15 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
               AND (:minRating IS NULL OR b.average_rating >= :minRating)
               AND (:lat IS NULL OR :lng IS NULL OR :radiusMeters IS NULL
                    OR ST_DWithin(b.location, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radiusMeters))
+              AND (:q IS NULL OR :q = ''
+                   OR word_similarity(b.name, :q) > 0.25
+                   OR word_similarity(cat.name, :q) > 0.4
+                   OR :q ILIKE '%' || cat.name || '%'
+                   OR :q ILIKE '%' || a.name || '%'
+                   OR :q ILIKE '%' || c.name || '%')
+              AND (:location IS NULL OR :location = ''
+                   OR :location ILIKE '%' || a.name || '%' OR a.name ILIKE '%' || :location || '%'
+                   OR :location ILIKE '%' || c.name || '%' OR c.name ILIKE '%' || :location || '%')
             """,
             nativeQuery = true)
     Page<Business> search(@Param("categoryId") UUID categoryId,
@@ -84,6 +144,8 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
                           @Param("lat") Double lat,
                           @Param("lng") Double lng,
                           @Param("radiusMeters") Double radiusMeters,
+                          @Param("q") String q,
+                          @Param("location") String location,
                           @Param("sort") String sort,
                           Pageable pageable);
 
