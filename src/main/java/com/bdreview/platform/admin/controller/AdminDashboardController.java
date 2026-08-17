@@ -37,6 +37,7 @@ public class AdminDashboardController {
         model.addAttribute("userCount", userRepository.count());
         model.addAttribute("businessCount", businessRepository.count());
         model.addAttribute("reviewCount", reviewRepository.count());
+        model.addAttribute("unclaimedCount", businessRepository.countUnclaimed());
         model.addAttribute("queueCounts", moderationService.counts());
         model.addAttribute("recentAuditLogs",
                 auditLogRepository.findAll(PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"))));

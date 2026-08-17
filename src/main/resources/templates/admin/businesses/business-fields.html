@@ -32,7 +32,7 @@
             <label class="form-label small fw-semibold">Area</label>
             <select th:field="*{areaId}" class="form-select" required>
                 <option value="" disabled>Select area</option>
-                <option th:each="a : ${areas}" th:value="${a.id}" th:text="${a.city.name + ' — ' + a.name}"></option>
+                <option th:each="a : ${areas}" th:value="${a.id}" th:text="${a.city.name + ' — ' + a.name}" th:attr="data-area-name=${a.name}"></option>
             </select>
             <div class="form-text">Areas belong to a city — pick the matching one for the city selected above.</div>
         </div>
@@ -44,6 +44,16 @@
         <div class="col-md-6">
             <label class="form-label small fw-semibold">Cover photo URL</label>
             <input type="text" th:field="*{coverPhotoUrl}" class="form-control" placeholder="https://…"/>
+        </div>
+
+        <div class="col-12">
+            <label class="form-label small fw-semibold">Location</label>
+            <div class="input-group input-group-sm mb-2">
+                <input type="text" id="mapAddressSearch" class="form-control" placeholder="Search an address or landmark, e.g. &quot;Gulshan 2, Dhaka&quot;"/>
+                <button type="button" id="mapAddressSearchBtn" class="btn btn-outline-secondary"><i class="bi bi-search"></i> Find</button>
+            </div>
+            <div id="businessLocationMap" style="height: 320px; border-radius: 8px;"></div>
+            <div class="form-text">Click the map, drag the pin, or search an address above — the coordinates below fill in automatically. You can still fine-tune them by hand.</div>
         </div>
 
         <div class="col-md-6">
@@ -81,6 +91,166 @@
             </div>
         </div>
     </div>
+
+    <script>
+    (function () {
+        var latInput = document.getElementById('latitude');
+        var lngInput = document.getElementById('longitude');
+        var mapEl = document.getElementById('businessLocationMap');
+        if (!latInput || !lngInput || !mapEl || !window.L) return;
+
+        var DHAKA = [23.8103, 90.4125];
+        var hasInitial = latInput.value !== '' && lngInput.value !== '';
+        var start = hasInitial ? [parseFloat(latInput.value), parseFloat(lngInput.value)] : DHAKA;
+
+        var map = L.map(mapEl).setView(start, hasInitial ? 15 : 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        var marker = L.marker(start, { draggable: true }).addTo(map);
+
+        // Only true once the admin has explicitly placed the pin (click/drag/search) — until
+        // then, picking City/Area is allowed to keep moving the marker to a sensible default.
+        var pinPlacedByAdmin = hasInitial;
+
+        function setCoords(lat, lng) {
+            latInput.value = lat.toFixed(6);
+            lngInput.value = lng.toFixed(6);
+        }
+
+        marker.on('dragend', function () {
+            pinPlacedByAdmin = true;
+            var pos = marker.getLatLng();
+            setCoords(pos.lat, pos.lng);
+        });
+
+        map.on('click', function (e) {
+            pinPlacedByAdmin = true;
+            marker.setLatLng(e.latlng);
+            setCoords(e.latlng.lat, e.latlng.lng);
+        });
+
+        function syncMarkerFromInputs() {
+            var lat = parseFloat(latInput.value);
+            var lng = parseFloat(lngInput.value);
+            if (!isNaN(lat) && !isNaN(lng)) {
+                pinPlacedByAdmin = true;
+                marker.setLatLng([lat, lng]);
+                map.panTo([lat, lng]);
+            }
+        }
+        latInput.addEventListener('change', syncMarkerFromInputs);
+        lngInput.addEventListener('change', syncMarkerFromInputs);
+
+        // `viewboxBounds` (a Leaflet LatLngBounds) restricts results to near the given area —
+        // road numbering ("Road 9", "Road 10"...) repeats across dozens of unrelated Dhaka
+        // neighbourhoods, so an unrestricted search for "Rd 10, Dhaka" can silently match the
+        // wrong one clear across the city instead of failing loudly.
+        function geocode(query, viewboxBounds) {
+            var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=bd&q=' + encodeURIComponent(query);
+            if (viewboxBounds) {
+                url += '&viewbox=' + viewboxBounds.getWest() + ',' + viewboxBounds.getNorth()
+                    + ',' + viewboxBounds.getEast() + ',' + viewboxBounds.getSouth() + '&bounded=1';
+            }
+            return fetch(url)
+                .then(function (res) { return res.json(); })
+                .then(function (results) { return results && results.length > 0 ? results[0] : null; })
+                .catch(function () { return null; });
+        }
+
+        // City/Area selects — recenter (and, until the admin has placed a pin themselves, also
+        // move the marker) to the chosen area/city so the map starts in the right neighbourhood
+        // instead of always defaulting to Dhaka.
+        var citySelect = document.getElementById('cityId');
+        var areaSelect = document.getElementById('areaId');
+
+        function selectedOptionText(select) {
+            if (!select || select.selectedIndex < 0) return '';
+            var opt = select.options[select.selectedIndex];
+            return opt && opt.value ? opt.text : '';
+        }
+
+        function recenterOnAreaCity() {
+            var cityName = selectedOptionText(citySelect);
+            var areaOpt = areaSelect && areaSelect.selectedIndex >= 0 ? areaSelect.options[areaSelect.selectedIndex] : null;
+            var areaName = areaOpt ? (areaOpt.getAttribute('data-area-name') || '') : '';
+            var query = [areaName, cityName, 'Bangladesh'].filter(Boolean).join(', ');
+            if (!cityName && !areaName) return;
+            geocode(query).then(function (found) {
+                if (!found) return;
+                var lat = parseFloat(found.lat);
+                var lng = parseFloat(found.lon);
+                map.setView([lat, lng], areaName ? 15 : 12);
+                if (!pinPlacedByAdmin) {
+                    marker.setLatLng([lat, lng]);
+                    setCoords(lat, lng);
+                }
+            });
+        }
+        if (citySelect) citySelect.addEventListener('change', recenterOnAreaCity);
+        if (areaSelect) areaSelect.addEventListener('change', recenterOnAreaCity);
+
+        var searchInput = document.getElementById('mapAddressSearch');
+        var searchBtn = document.getElementById('mapAddressSearchBtn');
+
+        // Full BD street addresses (house/road/project names) are rarely mapped in OpenStreetMap,
+        // so an exact query often finds nothing. Retry with the address progressively trimmed down
+        // to its trailing, more "geocodable" locality segments (area/city/postcode) instead of just
+        // failing outright.
+        function candidateQueries(raw) {
+            var parts = raw.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            var candidates = [raw];
+            for (var i = 1; i < parts.length; i++) {
+                candidates.push(parts.slice(i).join(', '));
+            }
+            return candidates.slice(0, 4);
+        }
+
+        function runSearch() {
+            var q = searchInput.value.trim();
+            if (!q) return;
+            searchBtn.disabled = true;
+            var candidates = candidateQueries(q);
+            // Pad generously (150% each side) so a legitimate address just outside the current
+            // view still matches, while a same-named road in a distant neighbourhood does not.
+            var bounds = map.getBounds().pad(1.5);
+
+            function tryNext(i) {
+                if (i >= candidates.length) {
+                    searchBtn.disabled = false;
+                    alert('Location not found near the selected City/Area, even after simplifying the address — click the map directly to place the pin.');
+                    return;
+                }
+                geocode(candidates[i], bounds).then(function (found) {
+                    if (found) {
+                        searchBtn.disabled = false;
+                        pinPlacedByAdmin = true;
+                        var lat = parseFloat(found.lat);
+                        var lng = parseFloat(found.lon);
+                        map.setView([lat, lng], 16);
+                        marker.setLatLng([lat, lng]);
+                        setCoords(lat, lng);
+                    } else {
+                        tryNext(i + 1);
+                    }
+                });
+            }
+            tryNext(0);
+        }
+        searchBtn.addEventListener('click', runSearch);
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                runSearch();
+            }
+        });
+
+        // Leaflet mis-sizes maps that are initialized while still laying out — nudge it once assets settle.
+        setTimeout(function () { map.invalidateSize(); }, 200);
+    })();
+    </script>
 </th:block>
 </body>
 </html>

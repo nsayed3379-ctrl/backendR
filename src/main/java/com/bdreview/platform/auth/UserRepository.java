@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,6 +17,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByPhoneNumber(String phoneNumber);
 
     boolean existsByPhoneNumber(String phoneNumber);
+
+    /** Batched "which of these business owners are still admin-placeholder accounts" — see BusinessService#claimedByOwner. */
+    @Query("SELECT u.id FROM User u WHERE u.id IN :ids AND u.role = :role")
+    List<UUID> findIdsByIdInAndRole(@Param("ids") Collection<UUID> ids, @Param("role") UserRole role);
 
     // -----------------------------------------------------------------
     // Admin panel (com.bdreview.platform.admin) — read-side search/listing

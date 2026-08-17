@@ -23,6 +23,8 @@ public record BusinessResponse(
         PriceTier priceTier,
         List<String> attributes,
         boolean verified,
+        /** True once a real (non-admin) owner has claimed this listing — see BusinessClaimService#ensureClaimable. */
+        boolean claimed,
         BigDecimal averageRating,
         int reviewCount,
         boolean flagged,
@@ -34,7 +36,7 @@ public record BusinessResponse(
         int totalWowCount
 ) {
     /** photoUrls: cover photo (if any) followed by gallery photos, in display order — card carousel source. */
-    public static BusinessResponse from(Business b, List<String> photoUrls) {
+    public static BusinessResponse from(Business b, List<String> photoUrls, boolean claimed) {
         return new BusinessResponse(
                 b.getId(), b.getName(), b.getSlug(),
                 b.getCategory().getName(), b.getCity().getName(), b.getArea().getName(),
@@ -43,7 +45,7 @@ public record BusinessResponse(
                 b.getLocation().getY(), b.getLocation().getX(),
                 b.getPriceTier(),
                 b.getAttributes().stream().map(BusinessAttribute::getName).toList(),
-                b.isVerified(), b.getAverageRating(), b.getReviewCount(),
+                b.isVerified(), claimed, b.getAverageRating(), b.getReviewCount(),
                 b.isFlagged(), b.getFlagReason(), b.getFlaggedAt(),
                 b.getTotalLikeCount(), b.getTotalDislikeCount(), b.getTotalLoveCount(), b.getTotalWowCount()
         );

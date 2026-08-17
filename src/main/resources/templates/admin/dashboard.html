@@ -63,6 +63,13 @@
                 <div class="admin-stat-label">Flagged reviews</div>
             </div>
         </a>
+        <a th:href="@{/admin/businesses(unclaimedOnly=true)}" class="admin-stat-card text-decoration-none text-reset">
+            <div class="admin-stat-icon warn"><i class="bi bi-shop-window"></i></div>
+            <div>
+                <div class="admin-stat-value" th:text="${unclaimedCount}">0</div>
+                <div class="admin-stat-label">Unclaimed listings</div>
+            </div>
+        </a>
     </div>
 
     <div class="admin-card">

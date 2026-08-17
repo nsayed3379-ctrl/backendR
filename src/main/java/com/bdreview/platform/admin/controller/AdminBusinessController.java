@@ -53,14 +53,18 @@ public class AdminBusinessController {
                         @RequestParam(required = false) UUID categoryId,
                         @RequestParam(required = false) UUID cityId,
                         @RequestParam(defaultValue = "false") boolean includeDeleted,
+                        @RequestParam(defaultValue = "false") boolean unclaimedOnly,
                         @RequestParam(required = false) Integer page,
                         Model model) {
-        model.addAttribute("results",
-                adminBusinessService.search(query, categoryId, cityId, includeDeleted, AdminSupport.pageOrDefault(page)));
+        var results = adminBusinessService.search(query, categoryId, cityId, includeDeleted, unclaimedOnly,
+                AdminSupport.pageOrDefault(page));
+        model.addAttribute("results", results);
+        model.addAttribute("unclaimedOwnerIds", adminBusinessService.unclaimedOwnerIds(results.getContent()));
         model.addAttribute("query", query);
         model.addAttribute("categoryId", categoryId);
         model.addAttribute("cityId", cityId);
         model.addAttribute("includeDeleted", includeDeleted);
+        model.addAttribute("unclaimedOnly", unclaimedOnly);
         model.addAttribute("categories", categoryRepository.findAll(Sort.by("name")));
         model.addAttribute("cities", cityRepository.findAll(Sort.by("name")));
         model.addAttribute("active", "businesses");

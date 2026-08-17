@@ -1,6 +1,8 @@
 package com.bdreview.platform.admin.service;
 
 import com.bdreview.platform.admin.form.BusinessForm;
+import com.bdreview.platform.auth.UserRepository;
+import com.bdreview.platform.auth.UserRole;
 import com.bdreview.platform.business.*;
 import com.bdreview.platform.common.PhoneNumberUtils;
 import com.bdreview.platform.common.ResourceNotFoundException;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -38,22 +41,35 @@ public class AdminBusinessService {
     private final CityRepository cityRepository;
     private final AreaRepository areaRepository;
     private final BusinessAttributeRepository attributeRepository;
+    private final UserRepository userRepository;
 
     public AdminBusinessService(BusinessRepository businessRepository,
                                  CategoryRepository categoryRepository,
                                  CityRepository cityRepository,
                                  AreaRepository areaRepository,
-                                 BusinessAttributeRepository attributeRepository) {
+                                 BusinessAttributeRepository attributeRepository,
+                                 UserRepository userRepository) {
         this.businessRepository = businessRepository;
         this.categoryRepository = categoryRepository;
         this.cityRepository = cityRepository;
         this.areaRepository = areaRepository;
         this.attributeRepository = attributeRepository;
+        this.userRepository = userRepository;
     }
 
-    public Page<Business> search(String query, UUID categoryId, UUID cityId, boolean includeDeleted, int page) {
+    public Page<Business> search(String query, UUID categoryId, UUID cityId, boolean includeDeleted,
+                                  boolean unclaimedOnly, int page) {
         Pageable pageable = PageRequest.of(page, 20);
-        return businessRepository.adminSearch(blankToNull(query), categoryId, cityId, includeDeleted, pageable);
+        return businessRepository.adminSearch(blankToNull(query), categoryId, cityId, includeDeleted, unclaimedOnly, pageable);
+    }
+
+    /** Which of a result page's owners are still admin-placeholders — drives the "Unclaimed" badge in businesses/list.html. */
+    public Set<UUID> unclaimedOwnerIds(List<Business> businesses) {
+        List<UUID> ownerIds = businesses.stream().map(Business::getOwnerUserId).distinct().toList();
+        if (ownerIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(userRepository.findIdsByIdInAndRole(ownerIds, UserRole.ADMIN));
     }
 
     public Business get(UUID id) {

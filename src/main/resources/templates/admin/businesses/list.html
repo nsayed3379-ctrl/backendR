@@ -35,6 +35,10 @@
             <input class="form-check-input" type="checkbox" name="includeDeleted" value="true" th:checked="${includeDeleted}" id="includeDeleted"/>
             <label class="form-check-label small" for="includeDeleted">Include deleted</label>
         </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" name="unclaimedOnly" value="true" th:checked="${unclaimedOnly}" id="unclaimedOnly"/>
+            <label class="form-check-label small" for="unclaimedOnly">Unclaimed only</label>
+        </div>
         <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Filter</button>
     </form>
 
@@ -69,6 +73,7 @@
                     <span class="badge bg-danger" th:if="${b.flagged}" th:title="${b.flagReason}">
                         <i class="bi bi-flag-fill"></i> Flagged
                     </span>
+                    <span class="badge bg-warning text-dark" th:if="${unclaimedOwnerIds.contains(b.ownerUserId)}">Unclaimed</span>
                 </td>
                 <td class="text-end">
                     <a th:href="@{/admin/businesses/{id}(id=${b.id})}" class="btn btn-sm btn-outline-secondary">View</a>
@@ -83,9 +88,9 @@
             <span>Page <span th:text="${results.number + 1}">1</span> of <span th:text="${results.totalPages}">1</span> &middot; <span th:text="${results.totalElements}">0</span> total</span>
             <div class="btn-group btn-group-sm">
                 <a class="btn btn-outline-secondary" th:classappend="${!results.hasPrevious()} ? 'disabled'"
-                   th:href="@{/admin/businesses(query=${query},categoryId=${categoryId},cityId=${cityId},includeDeleted=${includeDeleted},page=${results.number - 1})}">Previous</a>
+                   th:href="@{/admin/businesses(query=${query},categoryId=${categoryId},cityId=${cityId},includeDeleted=${includeDeleted},unclaimedOnly=${unclaimedOnly},page=${results.number - 1})}">Previous</a>
                 <a class="btn btn-outline-secondary" th:classappend="${!results.hasNext()} ? 'disabled'"
-                   th:href="@{/admin/businesses(query=${query},categoryId=${categoryId},cityId=${cityId},includeDeleted=${includeDeleted},page=${results.number + 1})}">Next</a>
+                   th:href="@{/admin/businesses(query=${query},categoryId=${categoryId},cityId=${cityId},includeDeleted=${includeDeleted},unclaimedOnly=${unclaimedOnly},page=${results.number + 1})}">Next</a>
             </div>
         </div>
     </div>

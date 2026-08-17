@@ -276,6 +276,8 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
               AND (:categoryId IS NULL OR b.category.id = :categoryId)
               AND (:cityId IS NULL OR b.city.id = :cityId)
               AND (:includeDeleted = true OR b.deletedAt IS NULL)
+              AND (:unclaimedOnly = false OR b.ownerUserId IN (
+                  SELECT u.id FROM User u WHERE u.role = com.bdreview.platform.auth.UserRole.ADMIN))
             """,
             countQuery = """
             SELECT count(b) FROM Business b
@@ -283,12 +285,23 @@ public interface BusinessRepository extends JpaRepository<Business, UUID> {
               AND (:categoryId IS NULL OR b.category.id = :categoryId)
               AND (:cityId IS NULL OR b.city.id = :cityId)
               AND (:includeDeleted = true OR b.deletedAt IS NULL)
+              AND (:unclaimedOnly = false OR b.ownerUserId IN (
+                  SELECT u.id FROM User u WHERE u.role = com.bdreview.platform.auth.UserRole.ADMIN))
             """)
     Page<Business> adminSearch(@Param("query") String query,
                                @Param("categoryId") UUID categoryId,
                                @Param("cityId") UUID cityId,
                                @Param("includeDeleted") boolean includeDeleted,
+                               @Param("unclaimedOnly") boolean unclaimedOnly,
                                Pageable pageable);
+
+    /** Dashboard stat tile: admin-seeded listings still awaiting a real owner claim — see BusinessClaimService#ensureClaimable. */
+    @Query("""
+            SELECT count(b) FROM Business b
+            WHERE b.deletedAt IS NULL
+              AND b.ownerUserId IN (SELECT u.id FROM User u WHERE u.role = com.bdreview.platform.auth.UserRole.ADMIN)
+            """)
+    long countUnclaimed();
 
     // Same reasoning as adminSearch above — the business detail/edit pages
     // read category/city/area/attributes, all LAZY, after the session closes.

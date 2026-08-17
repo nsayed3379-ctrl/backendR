@@ -104,7 +104,7 @@ public class BusinessService {
                 .build();
 
         Business saved = businessRepository.save(business);
-        return BusinessResponse.from(saved, photoUrlsFor(saved, List.of()));
+        return BusinessResponse.from(saved, photoUrlsFor(saved, List.of()), isClaimed(saved.getOwnerUserId()));
     }
 
     @Transactional
@@ -137,7 +137,7 @@ public class BusinessService {
         Business saved = businessRepository.save(business);
         List<String> galleryUrls = businessPhotoRepository.findByBusinessIdOrderBySortOrderAsc(saved.getId())
                 .stream().map(BusinessPhoto::getUrl).toList();
-        return BusinessResponse.from(saved, photoUrlsFor(saved, galleryUrls));
+        return BusinessResponse.from(saved, photoUrlsFor(saved, galleryUrls), isClaimed(saved.getOwnerUserId()));
     }
 
     @Transactional
@@ -211,7 +211,7 @@ public class BusinessService {
                 .orElseThrow(() -> new ResourceNotFoundException("Business not found: " + slug));
         List<String> galleryUrls = businessPhotoRepository.findByBusinessIdOrderBySortOrderAsc(business.getId())
                 .stream().map(BusinessPhoto::getUrl).toList();
-        return BusinessResponse.from(business, photoUrlsFor(business, galleryUrls));
+        return BusinessResponse.from(business, photoUrlsFor(business, galleryUrls), isClaimed(business.getOwnerUserId()));
     }
 
     @Transactional(readOnly = true)
@@ -223,17 +223,20 @@ public class BusinessService {
         Page<Business> results = businessRepository.search(categoryId, areaId, priceTier, minRating, lat, lng,
                 radiusMeters, q, location, sort, pageable);
         Map<UUID, List<String>> galleryByBusiness = galleryUrlsByBusiness(results.getContent());
+        Map<UUID, Boolean> claimedByOwner = claimedByOwner(results.getContent());
         return results.map(b -> BusinessResponse.from(b,
-                photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of()))));
+                photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of())),
+                claimedByOwner.getOrDefault(b.getOwnerUserId(), true)));
     }
 
     @Transactional(readOnly = true)
     public List<BusinessResponse> myBusinesses(UUID ownerUserId) {
         List<Business> businesses = businessRepository.findByOwnerUserIdAndDeletedAtIsNull(ownerUserId);
         Map<UUID, List<String>> galleryByBusiness = galleryUrlsByBusiness(businesses);
+        boolean claimed = isClaimed(ownerUserId);
         return businesses.stream()
                 .map(b -> BusinessResponse.from(b,
-                        photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of()))))
+                        photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of())), claimed))
                 .toList();
     }
 
@@ -245,9 +248,11 @@ public class BusinessService {
         }
         List<Business> matches = businessRepository.searchForClaim(query.trim());
         Map<UUID, List<String>> galleryByBusiness = galleryUrlsByBusiness(matches);
+        Map<UUID, Boolean> claimedByOwner = claimedByOwner(matches);
         return matches.stream()
                 .map(b -> BusinessResponse.from(b,
-                        photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of()))))
+                        photoUrlsFor(b, galleryByBusiness.getOrDefault(b.getId(), List.of())),
+                        claimedByOwner.getOrDefault(b.getOwnerUserId(), true)))
                 .toList();
     }
 
@@ -262,6 +267,25 @@ public class BusinessService {
             byBusiness.computeIfAbsent(photo.getBusinessId(), k -> new ArrayList<>()).add(photo.getUrl());
         }
         return byBusiness;
+    }
+
+    /** A listing is "claimed" once its owner is a real (non-admin) user — mirrors BusinessClaimService#ensureClaimable. */
+    private boolean isClaimed(UUID ownerUserId) {
+        return userRepository.findById(ownerUserId).map(u -> u.getRole() != UserRole.ADMIN).orElse(true);
+    }
+
+    /** Batched version of {@link #isClaimed(UUID)} for list/search results spanning many distinct owners. */
+    private Map<UUID, Boolean> claimedByOwner(List<Business> businesses) {
+        List<UUID> ownerIds = businesses.stream().map(Business::getOwnerUserId).distinct().toList();
+        if (ownerIds.isEmpty()) {
+            return Map.of();
+        }
+        Set<UUID> unclaimedOwnerIds = new HashSet<>(userRepository.findIdsByIdInAndRole(ownerIds, UserRole.ADMIN));
+        Map<UUID, Boolean> result = new HashMap<>();
+        for (UUID ownerId : ownerIds) {
+            result.put(ownerId, !unclaimedOwnerIds.contains(ownerId));
+        }
+        return result;
     }
 
     /** Card carousel source: cover photo first (if set), then gallery photos, de-duplicated. */
