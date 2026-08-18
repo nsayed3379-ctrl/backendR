@@ -86,6 +86,10 @@ public class MessageService {
                 threadId, PageRequest.of(page, PageRequestDefaults.clamp(size)));
     }
 
+    public long unreadCountFor(UUID threadId, UUID readerUserId) {
+        return messageRepository.countByThreadIdAndReadAtIsNullAndSenderUserIdNot(threadId, readerUserId);
+    }
+
     public List<MessageThread> myThreadsAsConsumer(UUID consumerUserId) {
         return threadRepository.findByConsumerUserId(consumerUserId);
     }

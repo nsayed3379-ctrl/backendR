@@ -2,6 +2,7 @@ package com.bdreview.platform.review;
 
 import com.bdreview.platform.auth.User;
 import com.bdreview.platform.auth.UserRepository;
+import com.bdreview.platform.business.Business;
 import com.bdreview.platform.business.BusinessRepository;
 import com.bdreview.platform.common.BadRequestException;
 import com.bdreview.platform.common.ForbiddenException;
@@ -65,9 +66,17 @@ public class ReviewService {
         if (!user.isOtpVerified()) {
             throw new ForbiddenException("Only OTP-verified accounts can submit reviews");
         }
-        businessRepository.findById(request.businessId())
+        Business business = businessRepository.findById(request.businessId())
                 .filter(b -> !b.isDeleted())
                 .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
+
+        if (business.getOwnerUserId().equals(userId)) {
+            throw new ForbiddenException("You can't review a business you own");
+        }
+
+        if (reviewRepository.findByBusinessIdAndUserIdAndDeletedAtIsNull(request.businessId(), userId).isPresent()) {
+            throw new BadRequestException("You already reviewed this business — edit your existing review instead");
+        }
 
         Review review = reviewRepository.save(Review.builder()
                 .businessId(request.businessId())
@@ -197,6 +206,11 @@ public class ReviewService {
 
     public List<ReviewPhoto> photosFor(UUID reviewId) {
         return reviewPhotoRepository.findByReviewId(reviewId);
+    }
+
+    /** Business detail page CTA: null means the user hasn't reviewed this business yet. */
+    public Review myReviewFor(UUID businessId, UUID userId) {
+        return reviewRepository.findByBusinessIdAndUserIdAndDeletedAtIsNull(businessId, userId).orElse(null);
     }
 
     private Review getOwnedEditableOrThrow(UUID userId, UUID reviewId) {

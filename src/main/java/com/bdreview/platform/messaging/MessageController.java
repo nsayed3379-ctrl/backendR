@@ -56,20 +56,22 @@ public class MessageController {
 
     @GetMapping("/threads/mine")
     public ResponseEntity<List<MessageThreadResponse>> myThreads() {
-        List<MessageThread> threads = messageService.myThreadsAsConsumer(CurrentUser.id());
+        UUID userId = CurrentUser.id();
+        List<MessageThread> threads = messageService.myThreadsAsConsumer(userId);
         Map<UUID, String> names = namesOf(threads.stream().map(MessageThread::getConsumerUserId).toList());
         return ResponseEntity.ok(threads.stream()
-                .map(t -> MessageThreadResponse.from(t, names.get(t.getConsumerUserId())))
+                .map(t -> MessageThreadResponse.from(t, names.get(t.getConsumerUserId()), messageService.unreadCountFor(t.getId(), userId)))
                 .toList());
     }
 
     @GetMapping("/threads/business-inbox")
     public ResponseEntity<List<MessageThreadResponse>> businessInbox() {
         CurrentUser.requireRole("BUSINESS_OWNER");
-        List<MessageThread> threads = messageService.threadsForMyBusinesses(CurrentUser.id());
+        UUID ownerId = CurrentUser.id();
+        List<MessageThread> threads = messageService.threadsForMyBusinesses(ownerId);
         Map<UUID, String> names = namesOf(threads.stream().map(MessageThread::getConsumerUserId).toList());
         return ResponseEntity.ok(threads.stream()
-                .map(t -> MessageThreadResponse.from(t, names.get(t.getConsumerUserId())))
+                .map(t -> MessageThreadResponse.from(t, names.get(t.getConsumerUserId()), messageService.unreadCountFor(t.getId(), ownerId)))
                 .toList());
     }
 

@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public record BusinessResponse(
         UUID id,
+        UUID ownerUserId,
         String name,
         String slug,
         String categoryName,
@@ -38,7 +39,7 @@ public record BusinessResponse(
     /** photoUrls: cover photo (if any) followed by gallery photos, in display order — card carousel source. */
     public static BusinessResponse from(Business b, List<String> photoUrls, boolean claimed) {
         return new BusinessResponse(
-                b.getId(), b.getName(), b.getSlug(),
+                b.getId(), b.getOwnerUserId(), b.getName(), b.getSlug(),
                 b.getCategory().getName(), b.getCity().getName(), b.getArea().getName(),
                 b.getContactNumber(), b.getOperatingHours(), b.getDescription(), b.getCoverPhotoUrl(),
                 b.getLogoUrl(), photoUrls,

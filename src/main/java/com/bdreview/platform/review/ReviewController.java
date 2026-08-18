@@ -66,6 +66,13 @@ public class ReviewController {
         return ResponseEntity.ok(PageResponse.of(results));
     }
 
+    /** Business detail page CTA: the caller's own review for this business, or 204 if they haven't reviewed it. */
+    @GetMapping("/business/{businessId}/mine")
+    public ResponseEntity<ReviewResponse> myReviewForBusiness(@PathVariable UUID businessId) {
+        Review review = reviewService.myReviewFor(businessId, CurrentUser.id());
+        return review == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(toResponse(review));
+    }
+
     @GetMapping("/business/{businessId}/dashboard")
     public ResponseEntity<PageResponse<ReviewResponse>> ownerDashboard(
             @PathVariable UUID businessId,

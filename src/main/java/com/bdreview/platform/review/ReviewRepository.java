@@ -28,6 +28,9 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
     Optional<Review> findByIdAndDeletedAtIsNull(UUID id);
 
+    /** One review per user per business (Yelp-style) — used both to surface "your review" and to block duplicates. */
+    Optional<Review> findByBusinessIdAndUserIdAndDeletedAtIsNull(UUID businessId, UUID userId);
+
     /** Home page "Recent Activity" feed — newest public reviews across every business. */
     Page<Review> findByDeletedAtIsNullAndVisibilityStatusNotOrderByCreatedAtDesc(
             VisibilityStatus excluded, Pageable pageable);
