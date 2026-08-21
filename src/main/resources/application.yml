@@ -4,8 +4,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:bd_review}
-    username: postgres
-    password: 12345
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:1234}
     hikari:
       maximum-pool-size: 20
 
@@ -46,6 +46,8 @@ app:
     access-token-ttl-minutes: 20
     refresh-token-ttl-days: 14
     secret: ${JWT_SECRET:change-me-in-prod}
+  # Admin panel's business-location map picker (business-fields.html) — Maps JavaScript API + Geocoding API.
+  google-maps-api-key: ${GOOGLE_MAPS_API_KEY:}
   otp:
     ttl-minutes: 5
     max-attempts: 5

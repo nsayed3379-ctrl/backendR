@@ -14,10 +14,12 @@
 </th:block>
 
 <!-- ============================================================= -->
-<!-- Leaflet + OpenStreetMap — click-to-pin location picker for the business form (no API key needed). -->
+<!-- Google Maps JS API + Geocoding — click-to-pin location picker for the business form. -->
 <th:block th:fragment="map-assets">
-    <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Plain blocking script (no async/defer) so window.google is guaranteed ready before
+         business-fields.html's inline picker script runs right after it, same ordering
+         guarantee the old synchronous Leaflet <script> tag gave us. -->
+    <script th:src="${'https://maps.googleapis.com/maps/api/js?key=' + @environment.getProperty('app.google-maps-api-key')}"></script>
 </th:block>
 
 <!-- ============================================================= -->

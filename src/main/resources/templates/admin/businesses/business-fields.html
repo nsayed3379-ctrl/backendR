@@ -51,18 +51,12 @@
             <div class="input-group input-group-sm mb-2">
                 <input type="text" id="mapAddressSearch" class="form-control" placeholder="Search an address or landmark, e.g. &quot;Gulshan 2, Dhaka&quot;"/>
                 <button type="button" id="mapAddressSearchBtn" class="btn btn-outline-secondary"><i class="bi bi-search"></i> Find</button>
+                <button type="button" id="mapUseCurrentLocationBtn" class="btn btn-outline-secondary"><i class="bi bi-geo-alt"></i> Use my current location</button>
             </div>
             <div id="businessLocationMap" style="height: 320px; border-radius: 8px;"></div>
-            <div class="form-text">Click the map, drag the pin, or search an address above — the coordinates below fill in automatically. You can still fine-tune them by hand.</div>
-        </div>
-
-        <div class="col-md-6">
-            <label class="form-label small fw-semibold">Latitude</label>
-            <input type="number" step="any" min="-90" max="90" th:field="*{latitude}" class="form-control" required/>
-        </div>
-        <div class="col-md-6">
-            <label class="form-label small fw-semibold">Longitude</label>
-            <input type="number" step="any" min="-180" max="180" th:field="*{longitude}" class="form-control" required/>
+            <div class="form-text">Click the map, drag the pin, search an address, or use your current location — the coordinates fill in automatically.</div>
+            <input type="hidden" th:field="*{latitude}"/>
+            <input type="hidden" th:field="*{longitude}"/>
         </div>
 
         <div class="col-md-6">
@@ -97,19 +91,21 @@
         var latInput = document.getElementById('latitude');
         var lngInput = document.getElementById('longitude');
         var mapEl = document.getElementById('businessLocationMap');
-        if (!latInput || !lngInput || !mapEl || !window.L) return;
+        if (!latInput || !lngInput || !mapEl || !window.google || !window.google.maps) return;
 
-        var DHAKA = [23.8103, 90.4125];
+        var DHAKA = { lat: 23.8103, lng: 90.4125 };
         var hasInitial = latInput.value !== '' && lngInput.value !== '';
-        var start = hasInitial ? [parseFloat(latInput.value), parseFloat(lngInput.value)] : DHAKA;
+        var start = hasInitial ? { lat: parseFloat(latInput.value), lng: parseFloat(lngInput.value) } : DHAKA;
 
-        var map = L.map(mapEl).setView(start, hasInitial ? 15 : 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-
-        var marker = L.marker(start, { draggable: true }).addTo(map);
+        var map = new google.maps.Map(mapEl, {
+            center: start,
+            zoom: hasInitial ? 15 : 12,
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false
+        });
+        var marker = new google.maps.Marker({ position: start, map: map, draggable: true });
+        var geocoder = new google.maps.Geocoder();
 
         // Only true once the admin has explicitly placed the pin (click/drag/search) — until
         // then, picking City/Area is allowed to keep moving the marker to a sensible default.
@@ -120,16 +116,17 @@
             lngInput.value = lng.toFixed(6);
         }
 
-        marker.on('dragend', function () {
+        marker.addListener('dragend', function () {
             pinPlacedByAdmin = true;
-            var pos = marker.getLatLng();
-            setCoords(pos.lat, pos.lng);
+            var pos = marker.getPosition();
+            setCoords(pos.lat(), pos.lng());
         });
 
-        map.on('click', function (e) {
+        map.addListener('click', function (e) {
+            if (!e.latLng) return;
             pinPlacedByAdmin = true;
-            marker.setLatLng(e.latlng);
-            setCoords(e.latlng.lat, e.latlng.lng);
+            marker.setPosition(e.latLng);
+            setCoords(e.latLng.lat(), e.latLng.lng());
         });
 
         function syncMarkerFromInputs() {
@@ -137,26 +134,33 @@
             var lng = parseFloat(lngInput.value);
             if (!isNaN(lat) && !isNaN(lng)) {
                 pinPlacedByAdmin = true;
-                marker.setLatLng([lat, lng]);
-                map.panTo([lat, lng]);
+                marker.setPosition({ lat: lat, lng: lng });
+                map.panTo({ lat: lat, lng: lng });
             }
         }
         latInput.addEventListener('change', syncMarkerFromInputs);
         lngInput.addEventListener('change', syncMarkerFromInputs);
 
-        // `viewboxBounds` (a Leaflet LatLngBounds) restricts results to near the given area —
-        // road numbering ("Road 9", "Road 10"...) repeats across dozens of unrelated Dhaka
-        // neighbourhoods, so an unrestricted search for "Rd 10, Dhaka" can silently match the
-        // wrong one clear across the city instead of failing loudly.
-        function geocode(query, viewboxBounds) {
-            var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=bd&q=' + encodeURIComponent(query);
-            if (viewboxBounds) {
-                url += '&viewbox=' + viewboxBounds.getWest() + ',' + viewboxBounds.getNorth()
-                    + ',' + viewboxBounds.getEast() + ',' + viewboxBounds.getSouth() + '&bounded=1';
-            }
-            return fetch(url)
-                .then(function (res) { return res.json(); })
-                .then(function (results) { return results && results.length > 0 ? results[0] : null; })
+        // Expand a viewport bounds outward — Google's `bounds` geocode param is a soft bias
+        // (unlike Nominatim's hard-bounded search), so padding it generously still lets a
+        // legitimate address just outside the current view win over a same-named road in a
+        // distant neighbourhood, without hard-excluding results outside the pad.
+        function padBounds(bounds, factor) {
+            var ne = bounds.getNorthEast();
+            var sw = bounds.getSouthWest();
+            var latPad = (ne.lat() - sw.lat()) * factor;
+            var lngPad = (ne.lng() - sw.lng()) * factor;
+            return new google.maps.LatLngBounds(
+                { lat: sw.lat() - latPad, lng: sw.lng() - lngPad },
+                { lat: ne.lat() + latPad, lng: ne.lng() + lngPad }
+            );
+        }
+
+        function geocode(query, biasBounds) {
+            var request = { address: query, componentRestrictions: { country: 'BD' } };
+            if (biasBounds) request.bounds = biasBounds;
+            return geocoder.geocode(request)
+                .then(function (res) { return res.results && res.results.length > 0 ? res.results[0] : null; })
                 .catch(function () { return null; });
         }
 
@@ -180,12 +184,12 @@
             if (!cityName && !areaName) return;
             geocode(query).then(function (found) {
                 if (!found) return;
-                var lat = parseFloat(found.lat);
-                var lng = parseFloat(found.lon);
-                map.setView([lat, lng], areaName ? 15 : 12);
+                var loc = found.geometry.location;
+                map.setCenter(loc);
+                map.setZoom(areaName ? 15 : 12);
                 if (!pinPlacedByAdmin) {
-                    marker.setLatLng([lat, lng]);
-                    setCoords(lat, lng);
+                    marker.setPosition(loc);
+                    setCoords(loc.lat(), loc.lng());
                 }
             });
         }
@@ -195,9 +199,9 @@
         var searchInput = document.getElementById('mapAddressSearch');
         var searchBtn = document.getElementById('mapAddressSearchBtn');
 
-        // Full BD street addresses (house/road/project names) are rarely mapped in OpenStreetMap,
-        // so an exact query often finds nothing. Retry with the address progressively trimmed down
-        // to its trailing, more "geocodable" locality segments (area/city/postcode) instead of just
+        // Full BD street addresses (house/road/project names) are rarely mapped precisely, so an
+        // exact query often finds nothing. Retry with the address progressively trimmed down to
+        // its trailing, more "geocodable" locality segments (area/city/postcode) instead of just
         // failing outright.
         function candidateQueries(raw) {
             var parts = raw.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
@@ -215,7 +219,7 @@
             var candidates = candidateQueries(q);
             // Pad generously (150% each side) so a legitimate address just outside the current
             // view still matches, while a same-named road in a distant neighbourhood does not.
-            var bounds = map.getBounds().pad(1.5);
+            var bounds = padBounds(map.getBounds(), 1.5);
 
             function tryNext(i) {
                 if (i >= candidates.length) {
@@ -227,11 +231,11 @@
                     if (found) {
                         searchBtn.disabled = false;
                         pinPlacedByAdmin = true;
-                        var lat = parseFloat(found.lat);
-                        var lng = parseFloat(found.lon);
-                        map.setView([lat, lng], 16);
-                        marker.setLatLng([lat, lng]);
-                        setCoords(lat, lng);
+                        var loc = found.geometry.location;
+                        map.setCenter(loc);
+                        map.setZoom(16);
+                        marker.setPosition(loc);
+                        setCoords(loc.lat(), loc.lng());
                     } else {
                         tryNext(i + 1);
                     }
@@ -247,8 +251,27 @@
             }
         });
 
-        // Leaflet mis-sizes maps that are initialized while still laying out — nudge it once assets settle.
-        setTimeout(function () { map.invalidateSize(); }, 200);
+        var currentLocationBtn = document.getElementById('mapUseCurrentLocationBtn');
+        if (currentLocationBtn && navigator.geolocation) {
+            currentLocationBtn.addEventListener('click', function () {
+                currentLocationBtn.disabled = true;
+                navigator.geolocation.getCurrentPosition(
+                    function (pos) {
+                        currentLocationBtn.disabled = false;
+                        pinPlacedByAdmin = true;
+                        var loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        map.setCenter(loc);
+                        map.setZoom(16);
+                        marker.setPosition(loc);
+                        setCoords(loc.lat, loc.lng);
+                    },
+                    function (err) {
+                        currentLocationBtn.disabled = false;
+                        alert(err.message || 'Unable to get your location.');
+                    }
+                );
+            });
+        }
     })();
     </script>
 </th:block>

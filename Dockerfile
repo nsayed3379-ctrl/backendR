@@ -1,0 +1,13 @@
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /app
+COPY pom.xml .
+RUN mvn -B dependency:go-offline
+COPY src ./src
+RUN mvn -B clean package -DskipTests
+
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+COPY --from=build /app/target/platform-0.1.0.jar app.jar
+# Render (and most PaaS hosts) inject PORT at runtime; application.yml's
+# server.port already reads ${PORT:8085}, so no extra config is needed here.
+ENTRYPOINT ["java", "-jar", "app.jar"]
